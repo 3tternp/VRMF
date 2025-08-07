@@ -100,7 +100,10 @@ export interface ClientOptions {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
+import { forgotPassword as api_auth_forgot_password_forgotPassword } from "~backend/auth/forgot_password";
 import { login as api_auth_login_login } from "~backend/auth/login";
+import { resetPassword as api_auth_reset_password_resetPassword } from "~backend/auth/reset_password";
+import { verifyMfa as api_auth_verify_mfa_verifyMfa } from "~backend/auth/verify_mfa";
 
 export namespace auth {
 
@@ -109,16 +112,46 @@ export namespace auth {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.forgotPassword = this.forgotPassword.bind(this)
             this.login = this.login.bind(this)
+            this.resetPassword = this.resetPassword.bind(this)
+            this.verifyMfa = this.verifyMfa.bind(this)
         }
 
         /**
-         * Login endpoint for demo purposes
+         * Initiates password reset process
+         */
+        public async forgotPassword(params: RequestType<typeof api_auth_forgot_password_forgotPassword>): Promise<ResponseType<typeof api_auth_forgot_password_forgotPassword>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/auth/forgot-password`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_forgot_password_forgotPassword>
+        }
+
+        /**
+         * Login endpoint with MFA support
          */
         public async login(params: RequestType<typeof api_auth_login_login>): Promise<ResponseType<typeof api_auth_login_login>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/auth/login`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_login_login>
+        }
+
+        /**
+         * Resets user password using reset token
+         */
+        public async resetPassword(params: RequestType<typeof api_auth_reset_password_resetPassword>): Promise<ResponseType<typeof api_auth_reset_password_resetPassword>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/auth/reset-password`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_reset_password_resetPassword>
+        }
+
+        /**
+         * Verifies MFA code and completes login
+         */
+        public async verifyMfa(params: RequestType<typeof api_auth_verify_mfa_verifyMfa>): Promise<ResponseType<typeof api_auth_verify_mfa_verifyMfa>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/auth/verify-mfa`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_verify_mfa_verifyMfa>
         }
     }
 }
@@ -312,8 +345,16 @@ export namespace risk {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
+import { changePassword as api_user_change_password_changePassword } from "~backend/user/change_password";
 import { create as api_user_create_create } from "~backend/user/create";
 import { list as api_user_list_list } from "~backend/user/list";
+import { getProfile as api_user_profile_getProfile } from "~backend/user/profile";
+import {
+    disableMfa as api_user_setup_mfa_disableMfa,
+    enableMfa as api_user_setup_mfa_enableMfa,
+    setupMfa as api_user_setup_mfa_setupMfa
+} from "~backend/user/setup_mfa";
+import { updateProfile as api_user_update_profile_updateProfile } from "~backend/user/update_profile";
 
 export namespace user {
 
@@ -322,8 +363,23 @@ export namespace user {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.changePassword = this.changePassword.bind(this)
             this.create = this.create.bind(this)
+            this.disableMfa = this.disableMfa.bind(this)
+            this.enableMfa = this.enableMfa.bind(this)
+            this.getProfile = this.getProfile.bind(this)
             this.list = this.list.bind(this)
+            this.setupMfa = this.setupMfa.bind(this)
+            this.updateProfile = this.updateProfile.bind(this)
+        }
+
+        /**
+         * Changes the current user's password
+         */
+        public async changePassword(params: RequestType<typeof api_user_change_password_changePassword>): Promise<ResponseType<typeof api_user_change_password_changePassword>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/change-password`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_change_password_changePassword>
         }
 
         /**
@@ -336,12 +392,57 @@ export namespace user {
         }
 
         /**
+         * Disables MFA
+         */
+        public async disableMfa(params: RequestType<typeof api_user_setup_mfa_disableMfa>): Promise<ResponseType<typeof api_user_setup_mfa_disableMfa>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/mfa/disable`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_setup_mfa_disableMfa>
+        }
+
+        /**
+         * Enables MFA after verifying setup
+         */
+        public async enableMfa(params: RequestType<typeof api_user_setup_mfa_enableMfa>): Promise<ResponseType<typeof api_user_setup_mfa_enableMfa>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/mfa/enable`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_setup_mfa_enableMfa>
+        }
+
+        /**
+         * Gets the current user's profile
+         */
+        public async getProfile(): Promise<ResponseType<typeof api_user_profile_getProfile>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/profile`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_getProfile>
+        }
+
+        /**
          * Lists all users
          */
         public async list(): Promise<ResponseType<typeof api_user_list_list>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/users`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_list_list>
+        }
+
+        /**
+         * Generates MFA setup information
+         */
+        public async setupMfa(): Promise<ResponseType<typeof api_user_setup_mfa_setupMfa>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/mfa/setup`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_setup_mfa_setupMfa>
+        }
+
+        /**
+         * Updates the current user's profile
+         */
+        public async updateProfile(params: RequestType<typeof api_user_update_profile_updateProfile>): Promise<ResponseType<typeof api_user_update_profile_updateProfile>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/profile`, {method: "PUT", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_update_profile_updateProfile>
         }
     }
 }

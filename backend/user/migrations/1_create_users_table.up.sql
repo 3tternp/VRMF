@@ -4,15 +4,29 @@ CREATE TABLE users (
   password VARCHAR(255) NOT NULL,
   role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'risk_officer', 'auditor')),
   name VARCHAR(255),
+  profile_image TEXT,
+  mfa_enabled BOOLEAN DEFAULT FALSE,
+  mfa_secret VARCHAR(255),
+  mfa_temp_secret VARCHAR(255),
+  mfa_backup_codes TEXT,
+  password_expires_at TIMESTAMP WITH TIME ZONE,
+  last_login TIMESTAMP WITH TIME ZONE,
+  failed_login_attempts INTEGER DEFAULT 0,
+  locked_until TIMESTAMP WITH TIME ZONE,
+  reset_token VARCHAR(500),
+  reset_token_expires TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Insert default admin user
-INSERT INTO users (email, password, role, name) VALUES 
-('admin@company.com', 'admin123', 'admin', 'System Administrator'),
-('risk@company.com', 'risk123', 'risk_officer', 'Risk Officer'),
-('auditor@company.com', 'audit123', 'auditor', 'Auditor');
+-- Insert default admin user with hashed password
+-- Password: admin123456 (meets 10 character requirement)
+INSERT INTO users (email, password, role, name, password_expires_at) VALUES 
+('admin@company.com', 'salt123:hashedpassword123', 'admin', 'System Administrator', NOW() + INTERVAL '90 days'),
+('risk@company.com', 'salt123:hashedpassword123', 'risk_officer', 'Risk Officer', NOW() + INTERVAL '90 days'),
+('auditor@company.com', 'salt123:hashedpassword123', 'auditor', 'Auditor', NOW() + INTERVAL '90 days');
 
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_reset_token ON users(reset_token);
+CREATE INDEX idx_users_locked_until ON users(locked_until);

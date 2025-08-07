@@ -8,6 +8,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { RisksPage } from './pages/RisksPage';
 import { RiskDetailPage } from './pages/RiskDetailPage';
 import { UsersPage } from './pages/UsersPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { Layout } from './components/Layout';
 
 const queryClient = new QueryClient({
@@ -51,6 +52,16 @@ function AppInner() {
             <ProtectedRoute>
               <Layout>
                 <RiskDetailPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ProfilePage />
               </Layout>
             </ProtectedRoute>
           }

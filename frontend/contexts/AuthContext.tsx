@@ -5,12 +5,20 @@ interface User {
   id: string;
   email: string;
   role: 'admin' | 'risk_officer' | 'auditor';
+  mfaEnabled: boolean;
+  passwordExpired: boolean;
+}
+
+interface LoginResult {
+  requiresMfa?: boolean;
+  tempToken?: string;
+  user: User;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, mfaCode?: string) => Promise<LoginResult>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -47,15 +55,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, mfaCode?: string): Promise<LoginResult> => {
     try {
-      const response = await backend.auth.login({ email, password });
+      const response = await backend.auth.login({ email, password, mfaCode });
+      
+      if (response.requiresMfa) {
+        return {
+          requiresMfa: true,
+          tempToken: response.tempToken,
+          user: response.user,
+        };
+      }
       
       setToken(response.token);
       setUser(response.user);
       
       localStorage.setItem('auth_token', response.token);
       localStorage.setItem('auth_user', JSON.stringify(response.user));
+      
+      return { user: response.user };
     } catch (error) {
       throw error;
     }

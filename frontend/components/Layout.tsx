@@ -105,13 +105,16 @@ export function Layout({ children }: LayoutProps) {
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <User className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-700">{user?.email}</span>
+              <Link
+                to="/profile"
+                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
+              >
+                <User className="h-4 w-4" />
+                <span className="text-sm">{user?.email}</span>
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(user?.role || '')}`}>
                   {getRoleDisplay(user?.role || '')}
                 </span>
-              </div>
+              </Link>
               
               <Button
                 variant="ghost"

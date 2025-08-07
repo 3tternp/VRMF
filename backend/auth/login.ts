@@ -1,8 +1,11 @@
 import { api, Cookie, APIError } from "encore.dev/api";
+import { userDB } from "../user/db";
+import { verifyPassword } from "../user/utils";
 
 export interface LoginRequest {
   email: string;
   password: string;
+  mfaCode?: string;
 }
 
 export interface LoginResponse {
@@ -11,38 +14,141 @@ export interface LoginResponse {
     id: string;
     email: string;
     role: "admin" | "risk_officer" | "auditor";
+    mfaEnabled: boolean;
+    passwordExpired: boolean;
   };
   session: Cookie<"session">;
+  requiresMfa?: boolean;
+  tempToken?: string;
 }
 
-// Login endpoint for demo purposes
+// Login endpoint with MFA support
 export const login = api<LoginRequest, LoginResponse>(
   { expose: true, method: "POST", path: "/auth/login" },
   async (req) => {
-    // Demo users - in production this would validate against a database
-    const demoUsers = [
-      { id: "1", email: "admin@company.com", password: "admin123", role: "admin" as const },
-      { id: "2", email: "risk@company.com", password: "risk123", role: "risk_officer" as const },
-      { id: "3", email: "auditor@company.com", password: "audit123", role: "auditor" as const },
-    ];
+    // Find user by email
+    const user = await userDB.queryRow<{
+      id: number;
+      email: string;
+      password: string;
+      role: string;
+      mfa_enabled: boolean;
+      mfa_secret?: string;
+      password_expires_at?: Date;
+      failed_login_attempts: number;
+      locked_until?: Date;
+    }>`
+      SELECT id, email, password, role, mfa_enabled, mfa_secret, 
+             password_expires_at, failed_login_attempts, locked_until
+      FROM users 
+      WHERE email = ${req.email}
+    `;
 
-    const user = demoUsers.find(u => u.email === req.email && u.password === req.password);
     if (!user) {
-      throw APIError.unauthenticated("invalid credentials");
+      throw APIError.unauthenticated("Invalid credentials");
     }
 
+    // Check if account is locked
+    if (user.locked_until && new Date() < new Date(user.locked_until)) {
+      throw APIError.permissionDenied("Account is temporarily locked due to too many failed login attempts");
+    }
+
+    // Verify password
+    const passwordValid = await verifyPassword(req.password, user.password);
+    if (!passwordValid) {
+      // Increment failed login attempts
+      const newFailedAttempts = user.failed_login_attempts + 1;
+      let lockUntil = null;
+      
+      if (newFailedAttempts >= 5) {
+        lockUntil = new Date(Date.now() + 30 * 60 * 1000); // Lock for 30 minutes
+      }
+
+      await userDB.exec`
+        UPDATE users 
+        SET failed_login_attempts = ${newFailedAttempts},
+            locked_until = ${lockUntil}
+        WHERE id = ${user.id}
+      `;
+
+      throw APIError.unauthenticated("Invalid credentials");
+    }
+
+    // Reset failed login attempts on successful password verification
+    await userDB.exec`
+      UPDATE users 
+      SET failed_login_attempts = 0, locked_until = NULL
+      WHERE id = ${user.id}
+    `;
+
+    const passwordExpired = user.password_expires_at && new Date() > new Date(user.password_expires_at);
+
+    // Check if MFA is enabled and code is required
+    if (user.mfa_enabled && !req.mfaCode) {
+      // Generate temporary token for MFA verification
+      const tempToken = Buffer.from(JSON.stringify({
+        userID: user.id.toString(),
+        email: user.email,
+        role: user.role,
+        type: 'mfa_pending',
+        expires: Date.now() + 300000, // 5 minutes
+      })).toString('base64');
+
+      return {
+        token: '',
+        user: {
+          id: user.id.toString(),
+          email: user.email,
+          role: user.role as "admin" | "risk_officer" | "auditor",
+          mfaEnabled: user.mfa_enabled,
+          passwordExpired: !!passwordExpired,
+        },
+        session: {
+          value: '',
+          expires: new Date(Date.now() + 300000),
+          httpOnly: true,
+          secure: true,
+          sameSite: "Lax",
+        },
+        requiresMfa: true,
+        tempToken,
+      };
+    }
+
+    // Verify MFA code if provided
+    if (user.mfa_enabled && req.mfaCode) {
+      const { verifyMfaCode } = await import("../user/mfa");
+      const mfaValid = await verifyMfaCode(user.mfa_secret!, req.mfaCode);
+      
+      if (!mfaValid) {
+        throw APIError.unauthenticated("Invalid MFA code");
+      }
+    }
+
+    // Generate session token
     const token = Buffer.from(JSON.stringify({
-      userID: user.id,
+      userID: user.id.toString(),
       email: user.email,
       role: user.role,
+      mfaEnabled: user.mfa_enabled,
+      passwordExpired: !!passwordExpired,
     })).toString('base64');
+
+    // Update last login
+    await userDB.exec`
+      UPDATE users 
+      SET last_login = NOW()
+      WHERE id = ${user.id}
+    `;
 
     return {
       token,
       user: {
-        id: user.id,
+        id: user.id.toString(),
         email: user.email,
-        role: user.role,
+        role: user.role as "admin" | "risk_officer" | "auditor",
+        mfaEnabled: user.mfa_enabled,
+        passwordExpired: !!passwordExpired,
       },
       session: {
         value: token,

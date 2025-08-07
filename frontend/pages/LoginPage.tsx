@@ -7,12 +7,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Shield, Eye, EyeOff } from 'lucide-react';
+import { ForgotPasswordDialog } from '../components/ForgotPasswordDialog';
+import { MfaVerificationDialog } from '../components/MfaVerificationDialog';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showMfaDialog, setShowMfaDialog] = useState(false);
+  const [tempToken, setTempToken] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -22,13 +27,32 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      const result = await login(email, password);
+      
+      if (result.requiresMfa) {
+        setTempToken(result.tempToken || '');
+        setShowMfaDialog(true);
+      } else {
+        if (result.user.passwordExpired) {
+          toast({
+            title: 'Password Expired',
+            description: 'Your password has expired. Please change it in your profile settings.',
+            variant: 'destructive',
+          });
+        }
+        navigate('/dashboard');
+      }
     } catch (error) {
       console.error('Login error:', error);
+      let errorMessage = 'Invalid email or password. Please try again.';
+      
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = (error as any).message;
+      }
+      
       toast({
         title: 'Login Failed',
-        description: 'Invalid email or password. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -36,15 +60,9 @@ export function LoginPage() {
     }
   };
 
-  const demoUsers = [
-    { email: 'admin@company.com', password: 'admin123', role: 'Administrator' },
-    { email: 'risk@company.com', password: 'risk123', role: 'Risk Officer' },
-    { email: 'auditor@company.com', password: 'audit123', role: 'Auditor' },
-  ];
-
-  const fillDemoCredentials = (email: string, password: string) => {
-    setEmail(email);
-    setPassword(password);
+  const handleMfaSuccess = () => {
+    setShowMfaDialog(false);
+    navigate('/dashboard');
   };
 
   return (
@@ -106,6 +124,17 @@ export function LoginPage() {
                 </div>
               </div>
 
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="px-0 text-sm"
+                  onClick={() => setShowForgotPassword(true)}
+                >
+                  Forgot password?
+                </Button>
+              </div>
+
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
@@ -113,30 +142,17 @@ export function LoginPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Demo Accounts</CardTitle>
-            <CardDescription className="text-xs">
-              Click to use demo credentials
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {demoUsers.map((user, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                size="sm"
-                className="w-full justify-start text-xs"
-                onClick={() => fillDemoCredentials(user.email, user.password)}
-              >
-                <div className="text-left">
-                  <div className="font-medium">{user.role}</div>
-                  <div className="text-gray-500">{user.email}</div>
-                </div>
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
+        <ForgotPasswordDialog
+          open={showForgotPassword}
+          onOpenChange={setShowForgotPassword}
+        />
+
+        <MfaVerificationDialog
+          open={showMfaDialog}
+          onOpenChange={setShowMfaDialog}
+          tempToken={tempToken}
+          onSuccess={handleMfaSuccess}
+        />
       </div>
     </div>
   );
