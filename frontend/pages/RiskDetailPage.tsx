@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, User, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Calendar, User, AlertTriangle, Shield, Target, FileText } from 'lucide-react';
 import { UpdateRiskDialog } from '../components/UpdateRiskDialog';
 import { ControlsSection } from '../components/ControlsSection';
 import { useState } from 'react';
@@ -68,6 +68,31 @@ export function RiskDetailPage() {
     });
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-NP', {
+      style: 'currency',
+      currency: 'NPR',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatRiskType = (riskType: string) => {
+    const typeMap: { [key: string]: string } = {
+      'confidentiality': 'Confidentiality (C)',
+      'integrity': 'Integrity (I)',
+      'availability': 'Availability (A)',
+      'confidentiality_integrity': 'Confidentiality & Integrity (CI)',
+      'confidentiality_availability': 'Confidentiality & Availability (CA)',
+      'integrity_availability': 'Integrity & Availability (IA)',
+      'confidentiality_integrity_availability': 'Confidentiality, Integrity & Availability (CIA)',
+    };
+    return typeMap[riskType] || riskType;
+  };
+
+  const formatAssetGroup = (assetGroup: string) => {
+    return assetGroup?.replace('_', '/').replace(/\b\w/g, l => l.toUpperCase()) || '';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -93,22 +118,19 @@ export function RiskDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Risk Information */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Basic Risk Details */}
           <Card>
             <CardHeader>
-              <CardTitle>Risk Details</CardTitle>
+              <CardTitle className="flex items-center space-x-2">
+                <FileText className="h-5 w-5" />
+                <span>Risk Details</span>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">Description</h4>
                 <p className="text-gray-700">{risk.description || 'No description provided'}</p>
               </div>
-
-              {risk.mitigation_plan && (
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Mitigation Plan</h4>
-                  <p className="text-gray-700">{risk.mitigation_plan}</p>
-                </div>
-              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -124,8 +146,151 @@ export function RiskDetailPage() {
                   </Badge>
                 </div>
               </div>
+
+              {(risk.asset_group || risk.asset) && (
+                <div className="grid grid-cols-2 gap-4">
+                  {risk.asset_group && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Asset Group</h4>
+                      <Badge variant="outline">
+                        {formatAssetGroup(risk.asset_group)}
+                      </Badge>
+                    </div>
+                  )}
+                  {risk.asset && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Asset</h4>
+                      <p className="text-gray-700">{risk.asset}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {risk.risk_type && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Risk Type</h4>
+                  <Badge variant="outline">
+                    {formatRiskType(risk.risk_type)}
+                  </Badge>
+                </div>
+              )}
+
+              {risk.threat && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Threat</h4>
+                  <p className="text-gray-700">{risk.threat}</p>
+                </div>
+              )}
+
+              {risk.vulnerability && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Vulnerability</h4>
+                  <p className="text-gray-700">{risk.vulnerability}</p>
+                </div>
+              )}
+
+              {risk.existing_controls && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Existing Controls</h4>
+                  <p className="text-gray-700">{risk.existing_controls}</p>
+                </div>
+              )}
+
+              {risk.impact_rationale && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Impact Rationale</h4>
+                  <p className="text-gray-700">{risk.impact_rationale}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Treatment Plan */}
+          {(risk.treatment_option || risk.proposed_treatment_action) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Target className="h-5 w-5" />
+                  <span>Treatment Plan</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {risk.treatment_option && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Treatment Option</h4>
+                    <Badge variant="outline" className="capitalize">
+                      {risk.treatment_option}
+                    </Badge>
+                  </div>
+                )}
+
+                {risk.proposed_treatment_action && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Proposed Treatment Action</h4>
+                    <p className="text-gray-700">{risk.proposed_treatment_action}</p>
+                  </div>
+                )}
+
+                {risk.mitigation_plan && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Mitigation Plan</h4>
+                    <p className="text-gray-700">{risk.mitigation_plan}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  {risk.annex_a_reference && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Annex A Reference</h4>
+                      <p className="text-sm text-gray-700">{risk.annex_a_reference}</p>
+                    </div>
+                  )}
+                  {risk.treatment_cost && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Treatment Cost</h4>
+                      <p className="text-sm text-gray-700">{formatCurrency(risk.treatment_cost)}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {risk.treatment_action_owner && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Treatment Owner</h4>
+                      <p className="text-sm text-gray-700">{risk.treatment_action_owner}</p>
+                    </div>
+                  )}
+                  {risk.treatment_timescale && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Timescale</h4>
+                      <p className="text-sm text-gray-700">{risk.treatment_timescale}</p>
+                    </div>
+                  )}
+                </div>
+
+                {risk.treatment_status && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Treatment Status</h4>
+                    <Badge variant="outline" className="capitalize">
+                      {risk.treatment_status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Comments */}
+          {risk.comments && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Comments</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-700">{risk.comments}</p>
+              </CardContent>
+            </Card>
+          )}
 
           <ControlsSection riskId={risk.id} />
         </div>
@@ -134,7 +299,10 @@ export function RiskDetailPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Risk Assessment</CardTitle>
+              <CardTitle className="flex items-center space-x-2">
+                <Shield className="h-5 w-5" />
+                <span>Risk Assessment</span>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center">
@@ -183,6 +351,42 @@ export function RiskDetailPage() {
                   </div>
                 </>
               )}
+
+              {(risk.post_treatment_likelihood || risk.post_treatment_impact) && (
+                <>
+                  <hr />
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Post-Treatment Risk</h4>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900 mb-2">{risk.post_treatment_risk_score || 0}</div>
+                      <Badge className={getRiskSeverityColor(risk.post_treatment_risk_score || 0)}>
+                        {getRiskSeverityLabel(risk.post_treatment_risk_score || 0)} Risk
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-center mt-3">
+                      <div>
+                        <div className="text-lg font-semibold text-blue-600">
+                          {risk.post_treatment_likelihood || risk.likelihood}
+                        </div>
+                        <div className="text-xs text-gray-600">Likelihood</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-semibold text-purple-600">
+                          {risk.post_treatment_impact || risk.impact}
+                        </div>
+                        <div className="text-xs text-gray-600">Impact</div>
+                      </div>
+                    </div>
+                    {risk.post_treatment_treatment_option && (
+                      <div className="mt-3 text-center">
+                        <Badge variant="outline" className="capitalize">
+                          {risk.post_treatment_treatment_option}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -204,6 +408,13 @@ export function RiskDetailPage() {
                   <User className="h-4 w-4" />
                   <span>{risk.owner_id}</span>
                 </div>
+                {risk.risk_owner_approval !== undefined && (
+                  <div className="mt-1">
+                    <Badge variant={risk.risk_owner_approval ? "default" : "secondary"}>
+                      {risk.risk_owner_approval ? "Approved" : "Not Approved"}
+                    </Badge>
+                  </div>
+                )}
               </div>
 
               <div>

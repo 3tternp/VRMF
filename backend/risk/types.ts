@@ -42,6 +42,35 @@ export type ImplementationStatus =
   | "implemented" 
   | "not_implemented";
 
+export type AssetGroup = 
+  | "information"
+  | "network"
+  | "hardware"
+  | "software"
+  | "physical_site"
+  | "people";
+
+export type RiskType = 
+  | "confidentiality"
+  | "integrity"
+  | "availability"
+  | "confidentiality_integrity"
+  | "confidentiality_availability"
+  | "integrity_availability"
+  | "confidentiality_integrity_availability";
+
+export type TreatmentOption = 
+  | "accept"
+  | "avoid"
+  | "modify"
+  | "share";
+
+export type TreatmentStatus = 
+  | "not_started"
+  | "in_progress"
+  | "completed"
+  | "rejected";
+
 export interface Risk {
   id: number;
   title: string;
@@ -61,6 +90,28 @@ export interface Risk {
   residual_likelihood?: number;
   residual_impact?: number;
   residual_risk_score: number;
+  
+  // ISO 27001 specific fields
+  asset_group?: AssetGroup;
+  asset?: string;
+  threat?: string;
+  vulnerability?: string;
+  risk_type?: RiskType;
+  risk_owner_approval?: boolean;
+  existing_controls?: string;
+  impact_rationale?: string;
+  treatment_option?: TreatmentOption;
+  proposed_treatment_action?: string;
+  annex_a_reference?: string;
+  treatment_cost?: number;
+  treatment_action_owner?: string;
+  treatment_timescale?: string;
+  treatment_status?: TreatmentStatus;
+  post_treatment_likelihood?: number;
+  post_treatment_impact?: number;
+  post_treatment_risk_score?: number;
+  post_treatment_treatment_option?: TreatmentOption;
+  comments?: string;
 }
 
 export interface RiskControl {

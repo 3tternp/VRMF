@@ -1,7 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { riskDB } from "./db";
-import type { Risk, RiskCategory, ComplianceFramework, RiskStatus } from "./types";
+import type { Risk, RiskCategory, ComplianceFramework, RiskStatus, AssetGroup, RiskType, TreatmentOption, TreatmentStatus } from "./types";
 
 export interface UpdateRiskRequest {
   id: number;
@@ -17,6 +17,27 @@ export interface UpdateRiskRequest {
   mitigation_plan?: string;
   residual_likelihood?: number;
   residual_impact?: number;
+  
+  // ISO 27001 specific fields
+  asset_group?: AssetGroup;
+  asset?: string;
+  threat?: string;
+  vulnerability?: string;
+  risk_type?: RiskType;
+  risk_owner_approval?: boolean;
+  existing_controls?: string;
+  impact_rationale?: string;
+  treatment_option?: TreatmentOption;
+  proposed_treatment_action?: string;
+  annex_a_reference?: string;
+  treatment_cost?: number;
+  treatment_action_owner?: string;
+  treatment_timescale?: string;
+  treatment_status?: TreatmentStatus;
+  post_treatment_likelihood?: number;
+  post_treatment_impact?: number;
+  post_treatment_treatment_option?: TreatmentOption;
+  comments?: string;
 }
 
 // Updates an existing risk
@@ -43,6 +64,12 @@ export const update = api<UpdateRiskRequest, Risk>(
     if (req.residual_impact && (req.residual_impact < 1 || req.residual_impact > 5)) {
       throw APIError.invalidArgument("Residual impact must be between 1 and 5");
     }
+    if (req.post_treatment_likelihood && (req.post_treatment_likelihood < 1 || req.post_treatment_likelihood > 5)) {
+      throw APIError.invalidArgument("Post-treatment likelihood must be between 1 and 5");
+    }
+    if (req.post_treatment_impact && (req.post_treatment_impact < 1 || req.post_treatment_impact > 5)) {
+      throw APIError.invalidArgument("Post-treatment impact must be between 1 and 5");
+    }
 
     // Check if risk exists
     const existingRisk = await riskDB.queryRow`
@@ -58,76 +85,22 @@ export const update = api<UpdateRiskRequest, Risk>(
     const params: any[] = [];
     let paramIndex = 1;
 
-    if (req.title !== undefined) {
-      updates.push(`title = $${paramIndex}`);
-      params.push(req.title);
-      paramIndex++;
-    }
+    const fields = [
+      'title', 'description', 'category', 'compliance_framework', 'likelihood', 'impact',
+      'status', 'owner_id', 'due_date', 'mitigation_plan', 'residual_likelihood', 'residual_impact',
+      'asset_group', 'asset', 'threat', 'vulnerability', 'risk_type', 'risk_owner_approval',
+      'existing_controls', 'impact_rationale', 'treatment_option', 'proposed_treatment_action',
+      'annex_a_reference', 'treatment_cost', 'treatment_action_owner', 'treatment_timescale',
+      'treatment_status', 'post_treatment_likelihood', 'post_treatment_impact', 
+      'post_treatment_treatment_option', 'comments'
+    ];
 
-    if (req.description !== undefined) {
-      updates.push(`description = $${paramIndex}`);
-      params.push(req.description);
-      paramIndex++;
-    }
-
-    if (req.category !== undefined) {
-      updates.push(`category = $${paramIndex}`);
-      params.push(req.category);
-      paramIndex++;
-    }
-
-    if (req.compliance_framework !== undefined) {
-      updates.push(`compliance_framework = $${paramIndex}`);
-      params.push(req.compliance_framework);
-      paramIndex++;
-    }
-
-    if (req.likelihood !== undefined) {
-      updates.push(`likelihood = $${paramIndex}`);
-      params.push(req.likelihood);
-      paramIndex++;
-    }
-
-    if (req.impact !== undefined) {
-      updates.push(`impact = $${paramIndex}`);
-      params.push(req.impact);
-      paramIndex++;
-    }
-
-    if (req.status !== undefined) {
-      updates.push(`status = $${paramIndex}`);
-      params.push(req.status);
-      paramIndex++;
-    }
-
-    if (req.owner_id !== undefined) {
-      updates.push(`owner_id = $${paramIndex}`);
-      params.push(req.owner_id);
-      paramIndex++;
-    }
-
-    if (req.due_date !== undefined) {
-      updates.push(`due_date = $${paramIndex}`);
-      params.push(req.due_date);
-      paramIndex++;
-    }
-
-    if (req.mitigation_plan !== undefined) {
-      updates.push(`mitigation_plan = $${paramIndex}`);
-      params.push(req.mitigation_plan);
-      paramIndex++;
-    }
-
-    if (req.residual_likelihood !== undefined) {
-      updates.push(`residual_likelihood = $${paramIndex}`);
-      params.push(req.residual_likelihood);
-      paramIndex++;
-    }
-
-    if (req.residual_impact !== undefined) {
-      updates.push(`residual_impact = $${paramIndex}`);
-      params.push(req.residual_impact);
-      paramIndex++;
+    for (const field of fields) {
+      if (req[field as keyof UpdateRiskRequest] !== undefined) {
+        updates.push(`${field} = $${paramIndex}`);
+        params.push(req[field as keyof UpdateRiskRequest]);
+        paramIndex++;
+      }
     }
 
     if (updates.length === 0) {
