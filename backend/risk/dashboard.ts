@@ -1,88 +1,116 @@
 import { api } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
-import { riskDB } from "./db";
+import { risksDB } from "./db";
+import { RiskDashboardStats, AssetGroup, ComplianceFramework } from "./types";
 
-export interface DashboardStats {
-  total_risks: number;
-  risks_by_status: { status: string; count: number }[];
-  risks_by_category: { category: string; count: number }[];
-  risks_by_compliance: { framework: string; count: number }[];
-  risk_heatmap: { likelihood: number; impact: number; count: number }[];
-  high_risk_count: number;
-  medium_risk_count: number;
-  low_risk_count: number;
-}
-
-// Retrieves dashboard statistics and risk heatmap data
-export const dashboard = api<void, DashboardStats>(
+// Gets dashboard statistics for risks.
+export const getDashboardStats = api<void, RiskDashboardStats>(
   { auth: true, expose: true, method: "GET", path: "/risks/dashboard" },
   async () => {
     const auth = getAuthData()!;
 
     // Get total risks
-    const totalResult = await riskDB.queryRow<{ count: number }>`
-      SELECT COUNT(*) as count FROM risks
+    const totalResult = await risksDB.queryRow<{ total: number }>`
+      SELECT COUNT(*) as total FROM risks
     `;
-    const total_risks = totalResult?.count || 0;
+    const totalRisks = totalResult?.total || 0;
 
-    // Get risks by status
-    const statusResults = await riskDB.queryAll<{ status: string; count: number }>`
-      SELECT status, COUNT(*) as count 
-      FROM risks 
-      GROUP BY status 
-      ORDER BY count DESC
-    `;
-
-    // Get risks by category
-    const categoryResults = await riskDB.queryAll<{ category: string; count: number }>`
-      SELECT category, COUNT(*) as count 
-      FROM risks 
-      GROUP BY category 
-      ORDER BY count DESC
-    `;
-
-    // Get risks by compliance framework
-    const complianceResults = await riskDB.queryAll<{ framework: string; count: number }>`
-      SELECT compliance_framework as framework, COUNT(*) as count 
-      FROM risks 
-      GROUP BY compliance_framework 
-      ORDER BY count DESC
-    `;
-
-    // Get risk heatmap data
-    const heatmapResults = await riskDB.queryAll<{ likelihood: number; impact: number; count: number }>`
-      SELECT likelihood, impact, COUNT(*) as count 
-      FROM risks 
-      GROUP BY likelihood, impact 
-      ORDER BY likelihood, impact
-    `;
-
-    // Get risk counts by severity
-    const severityResults = await riskDB.queryAll<{ risk_level: string; count: number }>`
-      SELECT 
-        CASE 
-          WHEN risk_score >= 15 THEN 'high'
-          WHEN risk_score >= 8 THEN 'medium'
-          ELSE 'low'
-        END as risk_level,
-        COUNT(*) as count
+    // Get risks by level
+    const riskLevels = await risksDB.queryAll<{ risk_level: string, count: number }>`
+      SELECT risk_level, COUNT(*) as count 
       FROM risks 
       GROUP BY risk_level
     `;
 
-    const high_risk_count = severityResults.find(r => r.risk_level === 'high')?.count || 0;
-    const medium_risk_count = severityResults.find(r => r.risk_level === 'medium')?.count || 0;
-    const low_risk_count = severityResults.find(r => r.risk_level === 'low')?.count || 0;
+    let highRisks = 0, mediumRisks = 0, lowRisks = 0;
+    riskLevels.forEach(level => {
+      switch (level.risk_level) {
+        case 'HIGH':
+          highRisks = level.count;
+          break;
+        case 'MEDIUM':
+          mediumRisks = level.count;
+          break;
+        case 'LOW':
+          lowRisks = level.count;
+          break;
+      }
+    });
+
+    // Get treatment status counts
+    const treatmentStatus = await risksDB.queryAll<{ treatment_action_status: string, count: number }>`
+      SELECT treatment_action_status, COUNT(*) as count 
+      FROM risks 
+      GROUP BY treatment_action_status
+    `;
+
+    let completedTreatments = 0, inProgressTreatments = 0, notStartedTreatments = 0;
+    treatmentStatus.forEach(status => {
+      switch (status.treatment_action_status) {
+        case 'Completed':
+          completedTreatments = status.count;
+          break;
+        case 'In Progress':
+          inProgressTreatments = status.count;
+          break;
+        case 'Not Started':
+          notStartedTreatments = status.count;
+          break;
+      }
+    });
+
+    // Get risks by asset group
+    const assetGroups = await risksDB.queryAll<{ asset_group: AssetGroup, count: number }>`
+      SELECT asset_group, COUNT(*) as count 
+      FROM risks 
+      GROUP BY asset_group
+    `;
+
+    const risksByAssetGroup: { [key in AssetGroup]: number } = {
+      'Information': 0,
+      'Network': 0,
+      'Hardware': 0,
+      'Software': 0,
+      'Physical/Site': 0,
+      'People': 0
+    };
+
+    assetGroups.forEach(group => {
+      risksByAssetGroup[group.asset_group] = group.count;
+    });
+
+    // Get risks by compliance framework
+    const complianceFrameworks = await risksDB.queryAll<{ framework: ComplianceFramework, count: number }>`
+      SELECT UNNEST(compliance_frameworks) as framework, COUNT(*) as count 
+      FROM risks 
+      GROUP BY framework
+    `;
+
+    const risksByComplianceFramework: { [key in ComplianceFramework]: number } = {
+      'ISO 27001': 0,
+      'SOC2': 0,
+      'HIPAA': 0,
+      'PCI DSS': 0,
+      'COSO': 0,
+      'COBIT': 0,
+      'GDPR': 0,
+      'NIST RMF': 0
+    };
+
+    complianceFrameworks.forEach(framework => {
+      risksByComplianceFramework[framework.framework] = framework.count;
+    });
 
     return {
-      total_risks,
-      risks_by_status: statusResults,
-      risks_by_category: categoryResults,
-      risks_by_compliance: complianceResults,
-      risk_heatmap: heatmapResults,
-      high_risk_count,
-      medium_risk_count,
-      low_risk_count,
+      totalRisks,
+      highRisks,
+      mediumRisks,
+      lowRisks,
+      completedTreatments,
+      inProgressTreatments,
+      notStartedTreatments,
+      risksByAssetGroup,
+      risksByComplianceFramework
     };
   }
 );
