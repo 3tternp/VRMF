@@ -1,67 +1,36 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
-import { userDB } from "./db";
+import { usersDB } from "./db";
 
-export interface DeleteUserRequest {
-  id: number;
+interface DeleteUserParams {
+  id: string;
 }
 
-export interface DeleteUserResponse {
-  message: string;
-}
-
-// Deletes a user (admin only)
-export const deleteUser = api<DeleteUserRequest, DeleteUserResponse>(
+// Deletes a user (admin only).
+export const deleteUser = api<DeleteUserParams, void>(
   { auth: true, expose: true, method: "DELETE", path: "/users/:id" },
-  async (req) => {
+  async (params) => {
     const auth = getAuthData()!;
     
-    // Only admin can delete users
-    if (auth.role !== "admin") {
-      throw APIError.permissionDenied("Only administrators can delete users");
+    // Check if user is admin
+    const currentUser = await usersDB.queryRow<{ role: string }>`
+      SELECT role FROM users WHERE id = ${auth.userID}
+    `;
+    
+    if (!currentUser || currentUser.role !== 'admin') {
+      throw APIError.permissionDenied("Only admins can delete users");
     }
 
-    // Check if the user exists and get their details
-    const userToDelete = await userDB.queryRow<{
-      id: number;
-      email: string;
-      role: string;
-    }>`
-      SELECT id, email, role FROM users WHERE id = ${req.id}
+    // Check if user exists
+    const userToDelete = await usersDB.queryRow<{ id: string }>`
+      SELECT id FROM users WHERE id = ${params.id}
     `;
-
+    
     if (!userToDelete) {
       throw APIError.notFound("User not found");
     }
 
-    // Prevent self-deletion
-    if (userToDelete.id.toString() === auth.userID) {
-      throw APIError.invalidArgument("You cannot delete your own account");
-    }
-
-    // Check if this is the last admin account
-    if (userToDelete.role === 'admin') {
-      const adminCount = await userDB.queryRow<{ count: number }>`
-        SELECT COUNT(*) as count FROM users WHERE role = 'admin'
-      `;
-
-      if (adminCount && adminCount.count <= 1) {
-        throw APIError.invalidArgument("Cannot delete the last administrator account. Create another admin first.");
-      }
-    }
-
-    try {
-      // Delete the user
-      await userDB.exec`
-        DELETE FROM users WHERE id = ${req.id}
-      `;
-
-      return {
-        message: `User ${userToDelete.email} has been successfully deleted`
-      };
-    } catch (error) {
-      console.error('Delete user error:', error);
-      throw APIError.internal("Failed to delete user. Please try again.");
-    }
+    // Delete the user
+    await usersDB.exec`DELETE FROM users WHERE id = ${params.id}`;
   }
 );
