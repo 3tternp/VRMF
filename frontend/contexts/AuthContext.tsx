@@ -1,24 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import backend from '~backend/client';
-
-interface User {
-  id: string;
-  email: string;
-  role: 'admin' | 'risk_officer' | 'auditor';
-  mfaEnabled: boolean;
-  passwordExpired: boolean;
-}
-
-interface LoginResult {
-  requiresMfa?: boolean;
-  tempToken?: string;
-  user: User;
-}
+import type { User } from '~backend/users/types';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string, mfaCode?: string) => Promise<LoginResult>;
+  login: (email: string, password: string, mfaCode?: string) => Promise<{ requiresMfa: boolean }>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -43,7 +30,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored auth data on mount
+    // Check for stored token on app start
     const storedToken = localStorage.getItem('auth_token');
     const storedUser = localStorage.getItem('auth_user');
     
@@ -55,25 +42,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string, mfaCode?: string): Promise<LoginResult> => {
+  const login = async (email: string, password: string, mfaCode?: string) => {
     try {
-      const response = await backend.auth.login({ email, password, mfaCode });
+      const response = await backend.users.login({ email, password, mfaCode });
       
       if (response.requiresMfa) {
-        return {
-          requiresMfa: true,
-          tempToken: response.tempToken,
-          user: response.user,
-        };
+        return { requiresMfa: true };
       }
       
-      setToken(response.token);
       setUser(response.user);
+      setToken(response.token);
       
       localStorage.setItem('auth_token', response.token);
       localStorage.setItem('auth_user', JSON.stringify(response.user));
       
-      return { user: response.user };
+      return { requiresMfa: false };
     } catch (error) {
       throw error;
     }
