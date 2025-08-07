@@ -16,17 +16,17 @@ export function RisksPage() {
   const { user } = useAuth();
   const backend = useBackend();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [complianceFilter, setComplianceFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [complianceFilter, setComplianceFilter] = useState<string>('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const { data: risksData, isLoading, refetch } = useQuery({
     queryKey: ['risks', statusFilter, categoryFilter, complianceFilter],
     queryFn: () => backend.risk.list({
-      status: statusFilter || undefined,
-      category: categoryFilter || undefined,
-      compliance_framework: complianceFilter || undefined,
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      category: categoryFilter === 'all' ? undefined : categoryFilter,
+      compliance_framework: complianceFilter === 'all' ? undefined : complianceFilter,
     }),
   });
 
@@ -91,7 +91,7 @@ export function RisksPage() {
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="identified">Identified</SelectItem>
                 <SelectItem value="assessed">Assessed</SelectItem>
                 <SelectItem value="mitigated">Mitigated</SelectItem>
@@ -106,7 +106,7 @@ export function RisksPage() {
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="operational">Operational</SelectItem>
                 <SelectItem value="financial">Financial</SelectItem>
                 <SelectItem value="strategic">Strategic</SelectItem>
@@ -123,7 +123,7 @@ export function RisksPage() {
                 <SelectValue placeholder="Filter by framework" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Frameworks</SelectItem>
+                <SelectItem value="all">All Frameworks</SelectItem>
                 <SelectItem value="nist_rmf">NIST RMF</SelectItem>
                 <SelectItem value="iso_27001">ISO 27001</SelectItem>
                 <SelectItem value="soc2">SOC 2</SelectItem>

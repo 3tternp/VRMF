@@ -30,8 +30,8 @@ export function UpdateRiskDialog({ risk, open, onOpenChange, onSuccess }: Update
     status: '',
     owner_id: '',
     mitigation_plan: '',
-    residual_likelihood: undefined as number | undefined,
-    residual_impact: undefined as number | undefined,
+    residual_likelihood: 'none' as string,
+    residual_impact: 'none' as string,
   });
 
   useEffect(() => {
@@ -46,14 +46,22 @@ export function UpdateRiskDialog({ risk, open, onOpenChange, onSuccess }: Update
         status: risk.status,
         owner_id: risk.owner_id,
         mitigation_plan: risk.mitigation_plan || '',
-        residual_likelihood: risk.residual_likelihood,
-        residual_impact: risk.residual_impact,
+        residual_likelihood: risk.residual_likelihood?.toString() || 'none',
+        residual_impact: risk.residual_impact?.toString() || 'none',
       });
     }
   }, [risk]);
 
   const updateRiskMutation = useMutation({
-    mutationFn: (data: any) => backend.risk.update({ id: risk.id, ...data }),
+    mutationFn: (data: any) => {
+      const updateData = {
+        id: risk.id,
+        ...data,
+        residual_likelihood: data.residual_likelihood === 'none' ? undefined : parseInt(data.residual_likelihood),
+        residual_impact: data.residual_impact === 'none' ? undefined : parseInt(data.residual_impact),
+      };
+      return backend.risk.update(updateData);
+    },
     onSuccess: () => {
       toast({
         title: 'Success',
@@ -180,17 +188,17 @@ export function UpdateRiskDialog({ risk, open, onOpenChange, onSuccess }: Update
             <div>
               <Label htmlFor="residual_likelihood">Residual Likelihood (1-5)</Label>
               <Select 
-                value={formData.residual_likelihood?.toString() || ""} 
+                value={formData.residual_likelihood} 
                 onValueChange={(value) => setFormData({ 
                   ...formData, 
-                  residual_likelihood: value ? parseInt(value) : undefined 
+                  residual_likelihood: value 
                 })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select residual likelihood" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Not Set</SelectItem>
+                  <SelectItem value="none">Not Set</SelectItem>
                   <SelectItem value="1">1 - Very Low</SelectItem>
                   <SelectItem value="2">2 - Low</SelectItem>
                   <SelectItem value="3">3 - Medium</SelectItem>
@@ -203,17 +211,17 @@ export function UpdateRiskDialog({ risk, open, onOpenChange, onSuccess }: Update
             <div>
               <Label htmlFor="residual_impact">Residual Impact (1-5)</Label>
               <Select 
-                value={formData.residual_impact?.toString() || ""} 
+                value={formData.residual_impact} 
                 onValueChange={(value) => setFormData({ 
                   ...formData, 
-                  residual_impact: value ? parseInt(value) : undefined 
+                  residual_impact: value 
                 })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select residual impact" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Not Set</SelectItem>
+                  <SelectItem value="none">Not Set</SelectItem>
                   <SelectItem value="1">1 - Very Low</SelectItem>
                   <SelectItem value="2">2 - Low</SelectItem>
                   <SelectItem value="3">3 - Medium</SelectItem>
