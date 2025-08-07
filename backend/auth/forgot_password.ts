@@ -27,7 +27,7 @@ export const forgotPassword = api<ForgotPasswordRequest, ForgotPasswordResponse>
 
     // Generate reset token with proper JSON structure
     const resetTokenData = {
-      userId: user.id,
+      userId: user.id.toString(),
       email: user.email,
       expires: Date.now() + 3600000, // 1 hour
       type: 'password_reset'

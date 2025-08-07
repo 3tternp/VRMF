@@ -22,7 +22,14 @@ export const resetPassword = api<ResetPasswordRequest, ResetPasswordResponse>(
 
     try {
       // Decode and validate token
-      const tokenData = JSON.parse(Buffer.from(req.token, 'base64').toString());
+      let tokenData;
+      try {
+        const decodedString = Buffer.from(req.token, 'base64').toString('utf8');
+        tokenData = JSON.parse(decodedString);
+      } catch (parseError) {
+        console.error('Reset token parsing error:', parseError);
+        throw APIError.invalidArgument("Invalid token format");
+      }
       
       if (tokenData.type !== 'password_reset') {
         throw APIError.invalidArgument("Invalid token type");
@@ -32,11 +39,17 @@ export const resetPassword = api<ResetPasswordRequest, ResetPasswordResponse>(
         throw APIError.invalidArgument("Reset token has expired");
       }
 
+      // Convert userId to number for database query
+      const userIdNumber = parseInt(tokenData.userId);
+      if (isNaN(userIdNumber)) {
+        throw APIError.invalidArgument("Invalid user ID in token");
+      }
+
       // Verify token exists in database and hasn't expired
       const user = await userDB.queryRow<{ id: number; reset_token: string }>`
         SELECT id, reset_token 
         FROM users 
-        WHERE id = ${tokenData.userId} 
+        WHERE id = ${userIdNumber} 
         AND reset_token = ${req.token}
         AND reset_token_expires > NOW()
       `;

@@ -23,7 +23,14 @@ export const verifyMfa = api<VerifyMfaRequest, VerifyMfaResponse>(
   async (req) => {
     try {
       // Decode and validate temp token
-      const tokenData = JSON.parse(Buffer.from(req.tempToken, 'base64').toString());
+      let tokenData;
+      try {
+        const decodedString = Buffer.from(req.tempToken, 'base64').toString('utf8');
+        tokenData = JSON.parse(decodedString);
+      } catch (parseError) {
+        console.error('Temp token parsing error:', parseError);
+        throw APIError.invalidArgument("Invalid token format");
+      }
       
       if (tokenData.type !== 'mfa_pending') {
         throw APIError.invalidArgument("Invalid token type");
@@ -31,6 +38,12 @@ export const verifyMfa = api<VerifyMfaRequest, VerifyMfaResponse>(
 
       if (Date.now() > tokenData.expires) {
         throw APIError.invalidArgument("Token has expired");
+      }
+
+      // Convert userID to number for database query
+      const userIdNumber = parseInt(tokenData.userID);
+      if (isNaN(userIdNumber)) {
+        throw APIError.invalidArgument("Invalid user ID in token");
       }
 
       // Get user and MFA secret
@@ -43,7 +56,7 @@ export const verifyMfa = api<VerifyMfaRequest, VerifyMfaResponse>(
       }>`
         SELECT id, email, role, mfa_secret, password_expires_at
         FROM users 
-        WHERE id = ${tokenData.userID}
+        WHERE id = ${userIdNumber}
       `;
 
       if (!user) {
