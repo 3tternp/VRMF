@@ -1,4 +1,4 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { riskDB } from "./db";
 import type { RiskCategory, ComplianceFramework, RiskStatus } from "./types";
@@ -43,15 +43,15 @@ export const create = api<CreateRiskRequest, CreateRiskResponse>(
     
     // Only admin and risk_officer can create risks
     if (auth.role === "auditor") {
-      throw new Error("Auditors cannot create risks");
+      throw APIError.permissionDenied("Auditors cannot create risks");
     }
 
     // Validate likelihood and impact values
     if (req.likelihood < 1 || req.likelihood > 5) {
-      throw new Error("Likelihood must be between 1 and 5");
+      throw APIError.invalidArgument("Likelihood must be between 1 and 5");
     }
     if (req.impact < 1 || req.impact > 5) {
-      throw new Error("Impact must be between 1 and 5");
+      throw APIError.invalidArgument("Impact must be between 1 and 5");
     }
 
     const risk = await riskDB.queryRow<CreateRiskResponse>`
@@ -67,7 +67,7 @@ export const create = api<CreateRiskRequest, CreateRiskResponse>(
     `;
 
     if (!risk) {
-      throw new Error("Failed to create risk");
+      throw APIError.internal("Failed to create risk");
     }
 
     return risk;

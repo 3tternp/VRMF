@@ -7,7 +7,8 @@ import {
   AlertTriangle, 
   LogOut, 
   Shield,
-  User
+  User,
+  Users
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -86,6 +87,20 @@ export function Layout({ children }: LayoutProps) {
                   <AlertTriangle className="h-4 w-4" />
                   <span>Risks</span>
                 </Link>
+
+                {user?.role === 'admin' && (
+                  <Link
+                    to="/users"
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      location.pathname === '/users'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Users className="h-4 w-4" />
+                    <span>Users</span>
+                  </Link>
+                )}
               </nav>
             </div>
 

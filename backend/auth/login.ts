@@ -1,4 +1,4 @@
-import { api, Cookie } from "encore.dev/api";
+import { api, Cookie, APIError } from "encore.dev/api";
 
 export interface LoginRequest {
   email: string;

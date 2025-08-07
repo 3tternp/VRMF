@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { RisksPage } from './pages/RisksPage';
 import { RiskDetailPage } from './pages/RiskDetailPage';
+import { UsersPage } from './pages/UsersPage';
 import { Layout } from './components/Layout';
 
 const queryClient = new QueryClient({
@@ -50,6 +51,16 @@ function AppInner() {
             <ProtectedRoute>
               <Layout>
                 <RiskDetailPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Layout>
+                <UsersPage />
               </Layout>
             </ProtectedRoute>
           }

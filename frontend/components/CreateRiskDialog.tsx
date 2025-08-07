@@ -30,7 +30,14 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
   });
 
   const createRiskMutation = useMutation({
-    mutationFn: (data: any) => backend.risk.create(data),
+    mutationFn: async (data: any) => {
+      try {
+        return await backend.risk.create(data);
+      } catch (error) {
+        console.error('Risk creation error:', error);
+        throw error;
+      }
+    },
     onSuccess: () => {
       toast({
         title: 'Success',
@@ -41,9 +48,10 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
     },
     onError: (error: any) => {
       console.error('Create risk error:', error);
+      const errorMessage = error?.message || 'Failed to create risk. Please try again.';
       toast({
         title: 'Error',
-        description: 'Failed to create risk. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     },
@@ -62,8 +70,9 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!formData.title || !formData.category || !formData.compliance_framework || !formData.owner_id) {
       toast({
         title: 'Validation Error',
@@ -72,7 +81,12 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
       });
       return;
     }
-    createRiskMutation.mutate(formData);
+
+    try {
+      await createRiskMutation.mutateAsync(formData);
+    } catch (error) {
+      // Error is already handled in the mutation's onError
+    }
   };
 
   const handleClose = () => {

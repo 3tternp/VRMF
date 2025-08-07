@@ -36,6 +36,7 @@ export class Client {
     public readonly auth: auth.ServiceClient
     public readonly control: control.ServiceClient
     public readonly risk: risk.ServiceClient
+    public readonly user: user.ServiceClient
     private readonly options: ClientOptions
     private readonly target: string
 
@@ -53,6 +54,7 @@ export class Client {
         this.auth = new auth.ServiceClient(base)
         this.control = new control.ServiceClient(base)
         this.risk = new risk.ServiceClient(base)
+        this.user = new user.ServiceClient(base)
     }
 
     /**
@@ -284,6 +286,43 @@ export namespace risk {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/risks/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_risk_update_update>
+        }
+    }
+}
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { create as api_user_create_create } from "~backend/user/create";
+import { list as api_user_list_list } from "~backend/user/list";
+
+export namespace user {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+            this.create = this.create.bind(this)
+            this.list = this.list.bind(this)
+        }
+
+        /**
+         * Creates a new user
+         */
+        public async create(params: RequestType<typeof api_user_create_create>): Promise<ResponseType<typeof api_user_create_create>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/users`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_create_create>
+        }
+
+        /**
+         * Lists all users
+         */
+        public async list(): Promise<ResponseType<typeof api_user_list_list>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/users`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_list_list>
         }
     }
 }
