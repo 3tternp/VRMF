@@ -1,114 +1,89 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
-import { riskDB } from "./db";
-import type { RiskCategory, ComplianceFramework, RiskStatus, AssetGroup, RiskType, TreatmentOption, TreatmentStatus } from "./types";
+import { usersDB } from "../users/db";
+import { risksDB } from "./db";
+import { CreateRiskRequest, Risk } from "./types";
+import { calculateRiskLevel, generateRiskId } from "./utils";
 
-export interface CreateRiskRequest {
-  title: string;
-  description?: string;
-  category: RiskCategory;
-  compliance_framework: ComplianceFramework;
-  likelihood: number;
-  impact: number;
-  status?: RiskStatus;
-  owner_id: string;
-  due_date?: Date;
-  mitigation_plan?: string;
-  
-  // ISO 27001 specific fields
-  asset_group?: AssetGroup;
-  asset?: string;
-  threat?: string;
-  vulnerability?: string;
-  risk_type?: RiskType;
-  risk_owner_approval?: boolean;
-  existing_controls?: string;
-  impact_rationale?: string;
-  treatment_option?: TreatmentOption;
-  proposed_treatment_action?: string;
-  annex_a_reference?: string;
-  treatment_cost?: number;
-  treatment_action_owner?: string;
-  treatment_timescale?: string;
-  treatment_status?: TreatmentStatus;
-  comments?: string;
-}
-
-export interface CreateRiskResponse {
-  id: number;
-  title: string;
-  description?: string;
-  category: RiskCategory;
-  compliance_framework: ComplianceFramework;
-  likelihood: number;
-  impact: number;
-  risk_score: number;
-  status: RiskStatus;
-  owner_id: string;
-  created_by: string;
-  created_at: Date;
-  updated_at: Date;
-  due_date?: Date;
-  mitigation_plan?: string;
-  residual_risk_score: number;
-  
-  // ISO 27001 specific fields
-  asset_group?: AssetGroup;
-  asset?: string;
-  threat?: string;
-  vulnerability?: string;
-  risk_type?: RiskType;
-  risk_owner_approval?: boolean;
-  existing_controls?: string;
-  impact_rationale?: string;
-  treatment_option?: TreatmentOption;
-  proposed_treatment_action?: string;
-  annex_a_reference?: string;
-  treatment_cost?: number;
-  treatment_action_owner?: string;
-  treatment_timescale?: string;
-  treatment_status?: TreatmentStatus;
-  comments?: string;
-}
-
-// Creates a new risk
-export const create = api<CreateRiskRequest, CreateRiskResponse>(
+// Creates a new risk (admin and iso_officer only).
+export const create = api<CreateRiskRequest, Risk>(
   { auth: true, expose: true, method: "POST", path: "/risks" },
   async (req) => {
     const auth = getAuthData()!;
     
-    // Only admin and risk_officer can create risks
-    if (auth.role === "auditor") {
-      throw APIError.permissionDenied("Auditors cannot create risks");
+    // Check if user can create risks
+    const currentUser = await usersDB.queryRow<{ role: string }>`
+      SELECT role FROM users WHERE id = ${auth.userID}
+    `;
+    
+    if (!currentUser || !['admin', 'iso_officer'].includes(currentUser.role)) {
+      throw APIError.permissionDenied("Only admins and ISO officers can create risks");
     }
 
-    // Validate likelihood and impact values
-    if (req.likelihood < 1 || req.likelihood > 5) {
-      throw APIError.invalidArgument("Likelihood must be between 1 and 5");
-    }
-    if (req.impact < 1 || req.impact > 5) {
-      throw APIError.invalidArgument("Impact must be between 1 and 5");
+    // Calculate risk level
+    const riskLevel = calculateRiskLevel(req.likelihood, req.impact);
+    
+    // Calculate post-treatment risk score and level if provided
+    let postTreatmentRiskScore: number | undefined;
+    let postTreatmentRiskLevel: string | undefined;
+    
+    if (req.postTreatmentLikelihood && req.postTreatmentImpact) {
+      postTreatmentRiskScore = req.postTreatmentLikelihood * req.postTreatmentImpact;
+      postTreatmentRiskLevel = calculateRiskLevel(req.postTreatmentLikelihood, req.postTreatmentImpact);
     }
 
-    const risk = await riskDB.queryRow<CreateRiskResponse>`
+    const riskId = generateRiskId();
+    
+    // Get next serial number
+    const nextSn = await risksDB.queryRow<{ next_sn: number }>`
+      SELECT COALESCE(MAX(sn), 0) + 1 as next_sn FROM risks
+    `;
+
+    await risksDB.exec`
       INSERT INTO risks (
-        title, description, category, compliance_framework, 
-        likelihood, impact, status, owner_id, created_by, due_date, mitigation_plan,
-        asset_group, asset, threat, vulnerability, risk_type, risk_owner_approval,
-        existing_controls, impact_rationale, treatment_option, proposed_treatment_action,
-        annex_a_reference, treatment_cost, treatment_action_owner, treatment_timescale,
-        treatment_status, comments
+        id, sn, asset_group, asset, threat, vulnerability, risk_type,
+        risk_owner, risk_owner_approval, existing_controls, likelihood, impact,
+        impact_rationale, risk_level, treatment_option_chosen, proposed_treatment_action,
+        annex_a_control_reference, treatment_cost, treatment_action_owner,
+        treatment_action_timescale, treatment_action_status, post_treatment_likelihood,
+        post_treatment_impact, post_treatment_risk_score, post_treatment_risk_level,
+        treatment_option_chosen2, comments, compliance_frameworks, review_date,
+        next_assessment_date, created_by, updated_by
       ) VALUES (
-        ${req.title}, ${req.description}, ${req.category}, ${req.compliance_framework},
-        ${req.likelihood}, ${req.impact}, ${req.status || 'identified'}, ${req.owner_id}, 
-        ${auth.userID}, ${req.due_date}, ${req.mitigation_plan},
-        ${req.asset_group}, ${req.asset}, ${req.threat}, ${req.vulnerability}, 
-        ${req.risk_type}, ${req.risk_owner_approval || false}, ${req.existing_controls},
-        ${req.impact_rationale}, ${req.treatment_option}, ${req.proposed_treatment_action},
-        ${req.annex_a_reference}, ${req.treatment_cost}, ${req.treatment_action_owner},
-        ${req.treatment_timescale}, ${req.treatment_status || 'not_started'}, ${req.comments}
+        ${riskId}, ${nextSn!.next_sn}, ${req.assetGroup}, ${req.asset}, ${req.threat},
+        ${req.vulnerability}, ${req.riskType}, ${req.riskOwner}, ${req.riskOwnerApproval},
+        ${req.existingControls}, ${req.likelihood}, ${req.impact}, ${req.impactRationale},
+        ${riskLevel}, ${req.treatmentOptionChosen}, ${req.proposedTreatmentAction},
+        ${req.annexAControlReference}, ${req.treatmentCost}, ${req.treatmentActionOwner},
+        ${req.treatmentActionTimescale}, ${req.treatmentActionStatus}, ${req.postTreatmentLikelihood},
+        ${req.postTreatmentImpact}, ${postTreatmentRiskScore}, ${postTreatmentRiskLevel},
+        ${req.treatmentOptionChosen2}, ${req.comments}, ${req.complianceFrameworks},
+        ${req.reviewDate}, ${req.nextAssessmentDate}, ${auth.userID}, ${auth.userID}
       )
-      RETURNING *
+    `;
+
+    const risk = await risksDB.queryRow<Risk>`
+      SELECT 
+        id, sn, asset_group as "assetGroup", asset, threat, vulnerability,
+        risk_type as "riskType", risk_owner as "riskOwner", 
+        risk_owner_approval as "riskOwnerApproval", existing_controls as "existingControls",
+        likelihood, impact, impact_rationale as "impactRationale", risk_level as "riskLevel",
+        treatment_option_chosen as "treatmentOptionChosen", 
+        proposed_treatment_action as "proposedTreatmentAction",
+        annex_a_control_reference as "annexAControlReference", treatment_cost as "treatmentCost",
+        treatment_action_owner as "treatmentActionOwner", 
+        treatment_action_timescale as "treatmentActionTimescale",
+        treatment_action_status as "treatmentActionStatus",
+        post_treatment_likelihood as "postTreatmentLikelihood",
+        post_treatment_impact as "postTreatmentImpact",
+        post_treatment_risk_score as "postTreatmentRiskScore",
+        post_treatment_risk_level as "postTreatmentRiskLevel",
+        treatment_option_chosen2 as "treatmentOptionChosen2", comments,
+        compliance_frameworks as "complianceFrameworks",
+        review_date as "reviewDate", next_assessment_date as "nextAssessmentDate",
+        created_at as "createdAt", updated_at as "updatedAt",
+        created_by as "createdBy", updated_by as "updatedBy"
+      FROM risks WHERE id = ${riskId}
     `;
 
     if (!risk) {
