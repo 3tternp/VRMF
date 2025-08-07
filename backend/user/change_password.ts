@@ -1,63 +1,46 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
-import { userDB } from "./db";
-import { hashPassword, verifyPassword, validatePasswordStrength } from "./utils";
+import { usersDB } from "./db";
+import { ChangePasswordRequest } from "./types";
+import { hashPassword, verifyPassword, getPasswordExpiryDate } from "./utils";
 
-export interface ChangePasswordRequest {
-  currentPassword: string;
-  newPassword: string;
-}
-
-export interface ChangePasswordResponse {
-  message: string;
-}
-
-// Changes the current user's password
-export const changePassword = api<ChangePasswordRequest, ChangePasswordResponse>(
-  { auth: true, expose: true, method: "POST", path: "/user/change-password" },
+// Changes user password.
+export const changePassword = api<ChangePasswordRequest, void>(
+  { auth: true, expose: true, method: "POST", path: "/users/change-password" },
   async (req) => {
     const auth = getAuthData()!;
-
-    // Validate new password strength
-    const validation = validatePasswordStrength(req.newPassword);
-    if (!validation.valid) {
-      throw APIError.invalidArgument(`Password validation failed: ${validation.errors.join(', ')}`);
-    }
-
-    // Get current user data
-    const user = await userDB.queryRow<{
-      id: number;
-      password: string;
-    }>`
-      SELECT id, password FROM users WHERE id = ${auth.userID}
+    
+    // Get current user
+    const user = await usersDB.queryRow<{ password_hash: string }>`
+      SELECT password_hash FROM users WHERE id = ${auth.userID}
     `;
-
+    
     if (!user) {
       throw APIError.notFound("User not found");
     }
 
     // Verify current password
-    const currentPasswordValid = await verifyPassword(req.currentPassword, user.password);
-    if (!currentPasswordValid) {
-      throw APIError.unauthenticated("Current password is incorrect");
+    const isCurrentPasswordValid = await verifyPassword(req.currentPassword, user.password_hash);
+    if (!isCurrentPasswordValid) {
+      throw APIError.invalidArgument("Current password is incorrect");
     }
 
     // Hash new password
-    const hashedNewPassword = await hashPassword(req.newPassword);
-    const passwordExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days
+    const newPasswordHash = await hashPassword(req.newPassword);
+    const passwordExpiresAt = getPasswordExpiryDate();
 
     // Update password
-    await userDB.exec`
+    await usersDB.exec`
       UPDATE users 
       SET 
-        password = ${hashedNewPassword},
+        password_hash = ${newPasswordHash},
         password_expires_at = ${passwordExpiresAt},
-        updated_at = NOW()
-      WHERE id = ${user.id}
+        last_password_change = CURRENT_TIMESTAMP,
+        failed_login_attempts = 0,
+        locked_until = NULL,
+        updated_at = CURRENT_TIMESTAMP,
+        updated_by = ${auth.userID}
+      WHERE id = ${auth.userID}
     `;
-
-    return {
-      message: "Password changed successfully"
-    };
   }
 );
