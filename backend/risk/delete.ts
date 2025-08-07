@@ -1,27 +1,37 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
-import { riskDB } from "./db";
+import { usersDB } from "../users/db";
+import { risksDB } from "./db";
 
-export interface DeleteRiskRequest {
-  id: number;
+interface DeleteRiskParams {
+  id: string;
 }
 
-// Deletes a risk
-export const deleteRisk = api<DeleteRiskRequest, void>(
+// Deletes a risk (admin only).
+export const deleteRisk = api<DeleteRiskParams, void>(
   { auth: true, expose: true, method: "DELETE", path: "/risks/:id" },
-  async (req) => {
+  async (params) => {
     const auth = getAuthData()!;
     
-    // Only admin can delete risks
-    if (auth.role !== "admin") {
-      throw APIError.permissionDenied("Only administrators can delete risks");
+    // Check if user is admin
+    const currentUser = await usersDB.queryRow<{ role: string }>`
+      SELECT role FROM users WHERE id = ${auth.userID}
+    `;
+    
+    if (!currentUser || currentUser.role !== 'admin') {
+      throw APIError.permissionDenied("Only admins can delete risks");
     }
 
-    const result = await riskDB.exec`
-      DELETE FROM risks WHERE id = ${req.id}
+    // Check if risk exists
+    const risk = await risksDB.queryRow<{ id: string }>`
+      SELECT id FROM risks WHERE id = ${params.id}
     `;
+    
+    if (!risk) {
+      throw APIError.notFound("Risk not found");
+    }
 
-    // Note: PostgreSQL doesn't return affected rows count in this context
-    // We could check if the risk existed first, but for simplicity we'll assume success
+    // Delete the risk
+    await risksDB.exec`DELETE FROM risks WHERE id = ${params.id}`;
   }
 );
