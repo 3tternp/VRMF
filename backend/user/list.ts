@@ -1,56 +1,39 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
-import { userDB } from "./db";
+import { usersDB } from "./db";
+import { User } from "./types";
 
-export interface User {
-  id: number;
-  email: string;
-  role: "admin" | "risk_officer" | "auditor";
-  name?: string;
-  created_at: Date;
-  last_login?: Date;
-  mfa_enabled: boolean;
-  is_default_admin: boolean;
-}
-
-export interface ListUsersResponse {
+interface ListUsersResponse {
   users: User[];
 }
 
-// Lists all users
+// Lists all users (admin only).
 export const list = api<void, ListUsersResponse>(
   { auth: true, expose: true, method: "GET", path: "/users" },
   async () => {
     const auth = getAuthData()!;
     
-    // Only admin can list users
-    if (auth.role !== "admin") {
-      throw APIError.permissionDenied("Only administrators can list users");
+    // Check if user is admin
+    const currentUser = await usersDB.queryRow<{ role: string }>`
+      SELECT role FROM users WHERE id = ${auth.userID}
+    `;
+    
+    if (!currentUser || currentUser.role !== 'admin') {
+      throw APIError.permissionDenied("Only admins can list users");
     }
 
-    try {
-      const users = await userDB.queryAll<User>`
-        SELECT 
-          id, 
-          email, 
-          role, 
-          name, 
-          created_at,
-          last_login,
-          mfa_enabled,
-          CASE 
-            WHEN email = 'admin@company.com' AND password = 'demo_admin_hash' 
-            THEN true 
-            ELSE false 
-          END as is_default_admin
-        FROM users 
-        ORDER BY created_at DESC
-      `;
+    const users = await usersDB.queryAll<User>`
+      SELECT 
+        id, email, role, first_name as "firstName", last_name as "lastName",
+        profile_picture_url as "profilePictureUrl", is_active as "isActive",
+        mfa_enabled as "mfaEnabled", password_expires_at as "passwordExpiresAt",
+        last_password_change as "lastPasswordChange", failed_login_attempts as "failedLoginAttempts",
+        locked_until as "lockedUntil", created_at as "createdAt", updated_at as "updatedAt",
+        created_by as "createdBy", updated_by as "updatedBy"
+      FROM users 
+      ORDER BY created_at DESC
+    `;
 
-      return { users };
-    } catch (error) {
-      console.error('List users error:', error);
-      throw APIError.internal("Failed to retrieve users. Please try again.");
-    }
+    return { users };
   }
 );
