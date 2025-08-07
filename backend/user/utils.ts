@@ -1,80 +1,63 @@
-export async function hashPassword(password: string): Promise<string> {
-  // Use Node.js built-in crypto for password hashing
-  const crypto = await import('crypto');
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-  return `${salt}:${hash}`;
-}
+import crypto from 'crypto';
+import { APIError } from 'encore.dev/api';
 
-export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-  try {
-    // Handle the default admin password with a simple comparison for demo
-    if (hashedPassword === 'demo_admin_hash' && password === 'admin123456') {
-      return true;
-    }
-    
-    // Handle new format passwords
-    const parts = hashedPassword.split(':');
-    if (parts.length !== 2) {
-      return false;
-    }
-    
-    const [salt, hash] = parts;
-    const crypto = await import('crypto');
-    const verifyHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-    return hash === verifyHash;
-  } catch (error) {
-    console.error('Password verification error:', error);
-    return false;
-  }
-}
-
-export function validatePasswordStrength(password: string): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-  
+export function validatePassword(password: string): void {
   if (password.length < 10) {
-    errors.push("Password must be at least 10 characters long");
+    throw APIError.invalidArgument("Password must be at least 10 characters long");
   }
-  
-  if (!/[A-Z]/.test(password)) {
-    errors.push("Password must contain at least one uppercase letter");
+
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
+    throw APIError.invalidArgument(
+      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+    );
   }
-  
-  if (!/[a-z]/.test(password)) {
-    errors.push("Password must contain at least one lowercase letter");
-  }
-  
-  if (!/[0-9]/.test(password)) {
-    errors.push("Password must contain at least one number");
-  }
-  
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    errors.push("Password must contain at least one special character");
-  }
-  
-  return {
-    valid: errors.length === 0,
-    errors
-  };
 }
 
-export function validateImageFile(file: File): { valid: boolean; error?: string } {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-  const maxSize = 5 * 1024 * 1024; // 5MB
+export async function hashPassword(password: string): Promise<string> {
+  validatePassword(password);
+  // Store password as plain text for simplicity
+  return password;
+}
+
+export async function verifyPassword(password: string, storedPassword: string): Promise<boolean> {
+  console.log('Verifying password');
+  console.log('Input password:', password);
+  console.log('Stored password:', storedPassword);
   
-  if (!allowedTypes.includes(file.type)) {
-    return {
-      valid: false,
-      error: 'Only JPEG, JPG, and PNG files are allowed'
-    };
-  }
-  
-  if (file.size > maxSize) {
-    return {
-      valid: false,
-      error: 'File size must be less than 5MB'
-    };
-  }
-  
-  return { valid: true };
+  // Simple string comparison
+  const result = password === storedPassword;
+  console.log('Verification result:', result);
+  return result;
+}
+
+export function generateResetToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+export function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+export function getPasswordExpiryDate(): Date {
+  const expiryDate = new Date();
+  expiryDate.setDate(expiryDate.getDate() + 90);
+  return expiryDate;
+}
+
+export function generateUserId(): string {
+  return crypto.randomUUID();
+}
+
+export function isPasswordExpired(expiresAt: Date): boolean {
+  return new Date() > expiresAt;
+}
+
+export function isAccountLocked(lockedUntil?: Date): boolean {
+  if (!lockedUntil) return false;
+  return new Date() < lockedUntil;
 }
