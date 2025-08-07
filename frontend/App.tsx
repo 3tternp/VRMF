@@ -6,15 +6,16 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { RisksPage } from './pages/RisksPage';
-import { RiskDetailPage } from './pages/RiskDetailPage';
+import { MonitoringPage } from './pages/MonitoringPage';
 import { UsersPage } from './pages/UsersPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { SettingsPage } from './pages/SettingsPage';
 import { Layout } from './components/Layout';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: false,
       refetchOnWindowFocus: false,
     },
   },
@@ -27,51 +28,18 @@ function AppInner() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route
-          path="/dashboard"
+          path="/*"
           element={
             <ProtectedRoute>
               <Layout>
-                <DashboardPage />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/risks"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <RisksPage />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/risks/:id"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <RiskDetailPage />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <ProfilePage />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/users"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <Layout>
-                <UsersPage />
+                <Routes>
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/risks" element={<RisksPage />} />
+                  <Route path="/monitoring" element={<MonitoringPage />} />
+                  <Route path="/users" element={<UsersPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                </Routes>
               </Layout>
             </ProtectedRoute>
           }
