@@ -1,8 +1,5 @@
 import { api, APIError } from "encore.dev/api";
 import { userDB } from "../user/db";
-import { secret } from "encore.dev/config";
-
-const emailSecret = secret("EmailSecret");
 
 export interface ForgotPasswordRequest {
   email: string;

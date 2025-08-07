@@ -1,13 +1,8 @@
-import { secret } from "encore.dev/config";
-
-const saltRounds = secret("PasswordSaltRounds");
-
 export async function hashPassword(password: string): Promise<string> {
-  // In a real application, use bcrypt or similar
-  // For demo purposes, we'll use a simple hash
+  // Use Node.js built-in crypto for password hashing
   const crypto = await import('crypto');
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
   return `${salt}:${hash}`;
 }
 
@@ -26,7 +21,7 @@ export async function verifyPassword(password: string, hashedPassword: string): 
     
     const [salt, hash] = parts;
     const crypto = await import('crypto');
-    const verifyHash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+    const verifyHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
     return hash === verifyHash;
   } catch (error) {
     console.error('Password verification error:', error);
