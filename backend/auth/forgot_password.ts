@@ -28,13 +28,14 @@ export const forgotPassword = api<ForgotPasswordRequest, ForgotPasswordResponse>
       };
     }
 
-    // Generate reset token (expires in 1 hour)
-    const resetToken = Buffer.from(JSON.stringify({
+    // Generate reset token with proper JSON structure
+    const resetTokenData = {
       userId: user.id,
       email: user.email,
       expires: Date.now() + 3600000, // 1 hour
       type: 'password_reset'
-    })).toString('base64');
+    };
+    const resetToken = Buffer.from(JSON.stringify(resetTokenData)).toString('base64');
 
     // Store reset token in database
     await userDB.exec`

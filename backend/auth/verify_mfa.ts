@@ -60,14 +60,16 @@ export const verifyMfa = api<VerifyMfaRequest, VerifyMfaResponse>(
 
       const passwordExpired = user.password_expires_at && new Date() > new Date(user.password_expires_at);
 
-      // Generate final session token
-      const token = Buffer.from(JSON.stringify({
+      // Generate final session token with proper JSON structure
+      const finalTokenData = {
         userID: user.id.toString(),
         email: user.email,
         role: user.role,
         mfaEnabled: true,
         passwordExpired: !!passwordExpired,
-      })).toString('base64');
+        iat: Date.now(),
+      };
+      const token = Buffer.from(JSON.stringify(finalTokenData)).toString('base64');
 
       // Update last login
       await userDB.exec`
@@ -87,6 +89,7 @@ export const verifyMfa = api<VerifyMfaRequest, VerifyMfaResponse>(
         }
       };
     } catch (err) {
+      console.error('Verify MFA error:', err);
       if (err instanceof APIError) {
         throw err;
       }

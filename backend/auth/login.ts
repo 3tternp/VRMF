@@ -94,13 +94,14 @@ export const login = api<LoginRequest, LoginResponse>(
       // Check if MFA is enabled and code is required
       if (user.mfa_enabled && !req.mfaCode) {
         // Generate temporary token for MFA verification
-        const tempToken = Buffer.from(JSON.stringify({
+        const tempTokenData = {
           userID: user.id.toString(),
           email: user.email,
           role: user.role,
           type: 'mfa_pending',
           expires: Date.now() + 300000, // 5 minutes
-        })).toString('base64');
+        };
+        const tempToken = Buffer.from(JSON.stringify(tempTokenData)).toString('base64');
 
         return {
           token: '',
@@ -133,14 +134,16 @@ export const login = api<LoginRequest, LoginResponse>(
         }
       }
 
-      // Generate session token
-      const token = Buffer.from(JSON.stringify({
+      // Generate session token with proper JSON structure
+      const tokenData = {
         userID: user.id.toString(),
         email: user.email,
         role: user.role,
         mfaEnabled: user.mfa_enabled,
         passwordExpired: !!passwordExpired,
-      })).toString('base64');
+        iat: Date.now(),
+      };
+      const token = Buffer.from(JSON.stringify(tokenData)).toString('base64');
 
       // Update last login
       await userDB.exec`

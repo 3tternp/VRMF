@@ -64,6 +64,7 @@ export const resetPassword = api<ResetPasswordRequest, ResetPasswordResponse>(
         message: "Password has been reset successfully. You can now log in with your new password."
       };
     } catch (err) {
+      console.error('Reset password error:', err);
       if (err instanceof APIError) {
         throw err;
       }

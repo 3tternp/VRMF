@@ -23,9 +23,15 @@ const auth = authHandler<AuthParams, AuthData>(
     }
 
     try {
+      // Decode the base64 token and parse as JSON
       const decoded = JSON.parse(Buffer.from(token, 'base64').toString());
       
-      // Get user details from database to check MFA and password expiry
+      // Validate token structure
+      if (!decoded.userID || !decoded.email || !decoded.role) {
+        throw APIError.unauthenticated("invalid token structure");
+      }
+      
+      // Get user details from database to check current status
       const user = await userDB.queryRow<{
         id: number;
         email: string;
@@ -42,6 +48,11 @@ const auth = authHandler<AuthParams, AuthData>(
         throw APIError.unauthenticated("user not found");
       }
 
+      // Verify the token data matches the current user data
+      if (user.email !== decoded.email || user.role !== decoded.role) {
+        throw APIError.unauthenticated("token data mismatch");
+      }
+
       const passwordExpired = user.password_expires_at && new Date() > new Date(user.password_expires_at);
 
       return {
@@ -52,6 +63,7 @@ const auth = authHandler<AuthParams, AuthData>(
         passwordExpired: !!passwordExpired,
       };
     } catch (err) {
+      console.error('Auth handler error:', err);
       throw APIError.unauthenticated("invalid token", err);
     }
   }
