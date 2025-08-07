@@ -13,9 +13,9 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
   try {
-    // Handle the default admin password with a more robust check
-    if (hashedPassword === 'salt123:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8') {
-      return password === 'admin123456';
+    // Handle the default admin password with a simple comparison for demo
+    if (hashedPassword === 'demo_admin_hash' && password === 'admin123456') {
+      return true;
     }
     
     // Handle new format passwords

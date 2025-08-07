@@ -173,7 +173,7 @@ export const login = api<LoginRequest, LoginResponse>(
         throw error;
       }
       
-      throw APIError.internal("An error occurred during login. Please try again.");
+      throw APIError.internal("Login failed. Please check your credentials and try again.");
     }
   }
 );

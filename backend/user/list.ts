@@ -39,7 +39,7 @@ export const list = api<void, ListUsersResponse>(
           last_login,
           mfa_enabled,
           CASE 
-            WHEN email = 'admin@company.com' AND password = 'salt123:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8' 
+            WHEN email = 'admin@company.com' AND password = 'demo_admin_hash' 
             THEN true 
             ELSE false 
           END as is_default_admin
