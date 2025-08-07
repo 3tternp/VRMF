@@ -1,0 +1,1 @@
+{"id": "risk-management-app-xcb2", "lang": "typescript"}
