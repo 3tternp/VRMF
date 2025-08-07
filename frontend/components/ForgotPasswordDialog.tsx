@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import backend from '~backend/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import backend from '~backend/client';
 import { useToast } from '@/components/ui/use-toast';
 
 interface ForgotPasswordDialogProps {
@@ -17,11 +23,11 @@ export function ForgotPasswordDialog({ open, onOpenChange }: ForgotPasswordDialo
   const { toast } = useToast();
 
   const forgotPasswordMutation = useMutation({
-    mutationFn: (email: string) => backend.auth.forgotPassword({ email }),
-    onSuccess: (data) => {
+    mutationFn: () => backend.users.forgotPassword({ email }),
+    onSuccess: () => {
       toast({
-        title: 'Reset Link Sent',
-        description: data.message,
+        title: "Reset Email Sent",
+        description: "If an account with that email exists, we've sent password reset instructions.",
       });
       onOpenChange(false);
       setEmail('');
@@ -29,71 +35,49 @@ export function ForgotPasswordDialog({ open, onOpenChange }: ForgotPasswordDialo
     onError: (error: any) => {
       console.error('Forgot password error:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to send reset link. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: error.message || "Failed to send reset email.",
+        variant: "destructive",
       });
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please enter your email address',
-        variant: 'destructive',
-      });
-      return;
-    }
-    forgotPasswordMutation.mutate(email);
-  };
-
-  const handleClose = () => {
-    onOpenChange(false);
-    setEmail('');
+    forgotPasswordMutation.mutate();
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>Reset Password</DialogTitle>
+          <DialogTitle>Forgot Password</DialogTitle>
           <DialogDescription>
-            Enter your email address and we'll send you a link to reset your password.
+            Enter your email address and we'll send you instructions to reset your password.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="reset-email">Email Address</Label>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
             <Input
-              id="reset-email"
+              id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
+              placeholder="Enter your email address"
               required
-              disabled={forgotPasswordMutation.isPending}
             />
           </div>
-
-          <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handleClose}
-              disabled={forgotPasswordMutation.isPending}
-            >
+          
+          <div className="flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={forgotPasswordMutation.isPending}
-            >
-              {forgotPasswordMutation.isPending ? 'Sending...' : 'Send Reset Link'}
+            <Button type="submit" disabled={forgotPasswordMutation.isLoading}>
+              {forgotPasswordMutation.isLoading ? 'Sending...' : 'Send Reset Instructions'}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
