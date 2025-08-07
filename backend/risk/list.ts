@@ -1,76 +1,94 @@
 import { api } from "encore.dev/api";
-import { Query } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
-import { riskDB } from "./db";
-import type { Risk, RiskCategory, ComplianceFramework, RiskStatus } from "./types";
+import { risksDB } from "./db";
+import { Risk } from "./types";
+import { Query } from "encore.dev/api";
 
-export interface ListRisksRequest {
-  category?: Query<RiskCategory>;
-  compliance_framework?: Query<ComplianceFramework>;
-  status?: Query<RiskStatus>;
-  owner_id?: Query<string>;
+interface ListRisksParams {
   limit?: Query<number>;
   offset?: Query<number>;
+  assetGroup?: Query<string>;
+  riskLevel?: Query<string>;
+  treatmentStatus?: Query<string>;
+  complianceFramework?: Query<string>;
 }
 
-export interface ListRisksResponse {
+interface ListRisksResponse {
   risks: Risk[];
   total: number;
 }
 
-// Lists all risks with optional filtering
-export const list = api<ListRisksRequest, ListRisksResponse>(
+// Lists all risks with optional filtering.
+export const list = api<ListRisksParams, ListRisksResponse>(
   { auth: true, expose: true, method: "GET", path: "/risks" },
-  async (req) => {
+  async (params) => {
     const auth = getAuthData()!;
     
-    let whereClause = "WHERE 1=1";
-    const params: any[] = [];
+    const limit = params.limit || 50;
+    const offset = params.offset || 0;
+    
+    // Build WHERE clause for filtering
+    const conditions: string[] = [];
+    const values: any[] = [];
     let paramIndex = 1;
 
-    // Auditors can only see risks, no additional filtering needed for role
-    // Admin and risk_officer can see all risks
-
-    if (req.category) {
-      whereClause += ` AND category = $${paramIndex}`;
-      params.push(req.category);
-      paramIndex++;
+    if (params.assetGroup) {
+      conditions.push(`asset_group = $${paramIndex++}`);
+      values.push(params.assetGroup);
+    }
+    
+    if (params.riskLevel) {
+      conditions.push(`risk_level = $${paramIndex++}`);
+      values.push(params.riskLevel);
+    }
+    
+    if (params.treatmentStatus) {
+      conditions.push(`treatment_action_status = $${paramIndex++}`);
+      values.push(params.treatmentStatus);
+    }
+    
+    if (params.complianceFramework) {
+      conditions.push(`$${paramIndex++} = ANY(compliance_frameworks)`);
+      values.push(params.complianceFramework);
     }
 
-    if (req.compliance_framework) {
-      whereClause += ` AND compliance_framework = $${paramIndex}`;
-      params.push(req.compliance_framework);
-      paramIndex++;
-    }
-
-    if (req.status) {
-      whereClause += ` AND status = $${paramIndex}`;
-      params.push(req.status);
-      paramIndex++;
-    }
-
-    if (req.owner_id) {
-      whereClause += ` AND owner_id = $${paramIndex}`;
-      params.push(req.owner_id);
-      paramIndex++;
-    }
-
-    const limit = req.limit || 50;
-    const offset = req.offset || 0;
-
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    
+    // Get total count
     const countQuery = `SELECT COUNT(*) as total FROM risks ${whereClause}`;
-    const totalResult = await riskDB.rawQueryRow<{ total: number }>(countQuery, ...params);
+    const totalResult = await risksDB.rawQueryRow<{ total: number }>(countQuery, ...values);
     const total = totalResult?.total || 0;
 
-    const query = `
-      SELECT * FROM risks 
+    // Get risks with pagination
+    const risksQuery = `
+      SELECT 
+        id, sn, asset_group as "assetGroup", asset, threat, vulnerability,
+        risk_type as "riskType", risk_owner as "riskOwner", 
+        risk_owner_approval as "riskOwnerApproval", existing_controls as "existingControls",
+        likelihood, impact, impact_rationale as "impactRationale", risk_level as "riskLevel",
+        treatment_option_chosen as "treatmentOptionChosen", 
+        proposed_treatment_action as "proposedTreatmentAction",
+        annex_a_control_reference as "annexAControlReference", treatment_cost as "treatmentCost",
+        treatment_action_owner as "treatmentActionOwner", 
+        treatment_action_timescale as "treatmentActionTimescale",
+        treatment_action_status as "treatmentActionStatus",
+        post_treatment_likelihood as "postTreatmentLikelihood",
+        post_treatment_impact as "postTreatmentImpact",
+        post_treatment_risk_score as "postTreatmentRiskScore",
+        post_treatment_risk_level as "postTreatmentRiskLevel",
+        treatment_option_chosen2 as "treatmentOptionChosen2", comments,
+        compliance_frameworks as "complianceFrameworks",
+        review_date as "reviewDate", next_assessment_date as "nextAssessmentDate",
+        created_at as "createdAt", updated_at as "updatedAt",
+        created_by as "createdBy", updated_by as "updatedBy"
+      FROM risks 
       ${whereClause}
-      ORDER BY created_at DESC 
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      ORDER BY sn DESC
+      LIMIT $${paramIndex++} OFFSET $${paramIndex++}
     `;
-    params.push(limit, offset);
-
-    const risks = await riskDB.rawQueryAll<Risk>(query, ...params);
+    
+    values.push(limit, offset);
+    const risks = await risksDB.rawQueryAll<Risk>(risksQuery, ...values);
 
     return { risks, total };
   }
