@@ -1,165 +1,146 @@
 import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertTriangle, CheckCircle, Clock, XCircle, TrendingUp, Users, Shield } from 'lucide-react';
 import { useBackend } from '../hooks/useBackend';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Shield, TrendingUp, Activity } from 'lucide-react';
-import { RiskHeatmap } from '../components/RiskHeatmap';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import { RiskChart } from '../components/RiskChart';
+import { ComplianceChart } from '../components/ComplianceChart';
 
 export function DashboardPage() {
   const backend = useBackend();
 
-  const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['dashboard'],
-    queryFn: () => backend.risk.dashboard(),
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: () => backend.risks.getDashboardStats(),
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
-  const stats = [
-    {
-      title: 'Total Risks',
-      value: dashboardData?.total_risks || 0,
-      icon: AlertTriangle,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
-    },
+  const riskLevelCards = [
     {
       title: 'High Risk',
-      value: dashboardData?.high_risk_count || 0,
-      icon: Shield,
+      value: stats?.highRisks || 0,
+      icon: AlertTriangle,
       color: 'text-red-600',
       bgColor: 'bg-red-50',
     },
     {
       title: 'Medium Risk',
-      value: dashboardData?.medium_risk_count || 0,
-      icon: TrendingUp,
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-50',
+      value: stats?.mediumRisks || 0,
+      icon: AlertTriangle,
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-50',
     },
     {
       title: 'Low Risk',
-      value: dashboardData?.low_risk_count || 0,
-      icon: Activity,
+      value: stats?.lowRisks || 0,
+      icon: CheckCircle,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
+    },
+    {
+      title: 'Total Risks',
+      value: stats?.totalRisks || 0,
+      icon: Shield,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+    },
+  ];
+
+  const treatmentCards = [
+    {
+      title: 'Completed',
+      value: stats?.completedTreatments || 0,
+      icon: CheckCircle,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+    },
+    {
+      title: 'In Progress',
+      value: stats?.inProgressTreatments || 0,
+      icon: Clock,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+    },
+    {
+      title: 'Not Started',
+      value: stats?.notStartedTreatments || 0,
+      icon: XCircle,
+      color: 'text-gray-600',
+      bgColor: 'bg-gray-50',
     },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Risk Dashboard</h1>
-        <p className="text-gray-600 mt-2">
-          Overview of your organization's risk landscape
-        </p>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600">Overview of your risk management framework</p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index}>
+      {/* Risk Level Overview */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Risk Level Overview</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {riskLevelCards.map((card) => (
+            <Card key={card.title}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                    <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-sm font-medium text-gray-600">{card.title}</p>
+                    <p className="text-3xl font-bold text-gray-900">{card.value}</p>
                   </div>
-                  <div className={`p-3 rounded-full ${stat.bgColor}`}>
-                    <Icon className={`h-6 w-6 ${stat.color}`} />
+                  <div className={`p-3 rounded-full ${card.bgColor}`}>
+                    <card.icon className={`h-6 w-6 ${card.color}`} />
                   </div>
                 </div>
               </CardContent>
             </Card>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
+      {/* Treatment Status */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Treatment Status</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {treatmentCards.map((card) => (
+            <Card key={card.title}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">{card.title}</p>
+                    <p className="text-3xl font-bold text-gray-900">{card.value}</p>
+                  </div>
+                  <div className={`p-3 rounded-full ${card.bgColor}`}>
+                    <card.icon className={`h-6 w-6 ${card.color}`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Risk Heatmap */}
         <Card>
           <CardHeader>
-            <CardTitle>Risk Heatmap</CardTitle>
-            <CardDescription>
-              Visual representation of risk likelihood vs impact
-            </CardDescription>
+            <CardTitle>Risks by Asset Group</CardTitle>
           </CardHeader>
           <CardContent>
-            <RiskHeatmap data={dashboardData?.risk_heatmap || []} />
+            <RiskChart data={stats?.risksByAssetGroup || {}} />
           </CardContent>
         </Card>
 
-        {/* Risk by Status */}
         <Card>
           <CardHeader>
-            <CardTitle>Risks by Status</CardTitle>
-            <CardDescription>
-              Current status distribution of all risks
-            </CardDescription>
+            <CardTitle>Compliance Framework Coverage</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {dashboardData?.risks_by_status.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline" className="capitalize">
-                      {item.status.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                  <span className="font-semibold">{item.count}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Risk by Category */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Risks by Category</CardTitle>
-            <CardDescription>
-              Distribution across different risk categories
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RiskChart 
-              data={dashboardData?.risks_by_category || []} 
-              dataKey="count"
-              nameKey="category"
-            />
-          </CardContent>
-        </Card>
-
-        {/* Risk by Compliance Framework */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Compliance Frameworks</CardTitle>
-            <CardDescription>
-              Risks mapped to compliance standards
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {dashboardData?.risks_by_compliance.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="secondary" className="uppercase">
-                      {item.framework.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                  <span className="font-semibold">{item.count}</span>
-                </div>
-              ))}
-            </div>
+            <ComplianceChart data={stats?.risksByComplianceFramework || {}} />
           </CardContent>
         </Card>
       </div>
