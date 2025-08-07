@@ -20,8 +20,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
+# Build the application with Encore.ts
+RUN npx encore build
 
 # Production image
 FROM node:18-alpine AS runner
@@ -31,7 +31,10 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 encore
 
-# Copy built application
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Copy built application from Encore.ts build
 COPY --from=builder --chown=encore:nodejs /app/dist ./dist
 COPY --from=deps --chown=encore:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=encore:nodejs /app/package*.json ./
@@ -47,4 +50,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:4000/health || exit 1
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["npx", "encore", "run"]
