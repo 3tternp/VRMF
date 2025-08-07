@@ -347,6 +347,7 @@ export namespace risk {
  */
 import { changePassword as api_user_change_password_changePassword } from "~backend/user/change_password";
 import { create as api_user_create_create } from "~backend/user/create";
+import { deleteUser as api_user_delete_deleteUser } from "~backend/user/delete";
 import { list as api_user_list_list } from "~backend/user/list";
 import { getProfile as api_user_profile_getProfile } from "~backend/user/profile";
 import {
@@ -367,6 +368,7 @@ export namespace user {
             this.baseClient = baseClient
             this.changePassword = this.changePassword.bind(this)
             this.create = this.create.bind(this)
+            this.deleteUser = this.deleteUser.bind(this)
             this.disableMfa = this.disableMfa.bind(this)
             this.enableMfa = this.enableMfa.bind(this)
             this.getProfile = this.getProfile.bind(this)
@@ -393,6 +395,15 @@ export namespace user {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/users`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_create_create>
+        }
+
+        /**
+         * Deletes a user (admin only)
+         */
+        public async deleteUser(params: { id: number }): Promise<ResponseType<typeof api_user_delete_deleteUser>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/users/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_delete_deleteUser>
         }
 
         /**

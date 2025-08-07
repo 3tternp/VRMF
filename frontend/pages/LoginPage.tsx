@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { Shield, Eye, EyeOff } from 'lucide-react';
+import { Shield, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { ForgotPasswordDialog } from '../components/ForgotPasswordDialog';
 import { MfaVerificationDialog } from '../components/MfaVerificationDialog';
 
@@ -44,7 +44,7 @@ export function LoginPage() {
       }
     } catch (error) {
       console.error('Login error:', error);
-      let errorMessage = 'Invalid email or password. Please try again.';
+      let errorMessage = 'Login failed. Please check your credentials and try again.';
       
       if (error && typeof error === 'object' && 'message' in error) {
         errorMessage = (error as any).message;
@@ -84,6 +84,21 @@ export function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Default Admin Credentials Info */}
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center space-x-2 text-blue-800 mb-2">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-sm font-medium">Default Admin Credentials</span>
+              </div>
+              <div className="text-xs text-blue-700 space-y-1">
+                <p><strong>Email:</strong> admin@company.com</p>
+                <p><strong>Password:</strong> admin123456</p>
+                <p className="text-blue-600 mt-2">
+                  <strong>Important:</strong> Create a new admin account and delete this default account for security.
+                </p>
+              </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -94,6 +109,7 @@ export function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
                   required
+                  disabled={isLoading}
                 />
               </div>
 
@@ -107,6 +123,7 @@ export function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     required
+                    disabled={isLoading}
                   />
                   <Button
                     type="button"
@@ -114,6 +131,7 @@ export function LoginPage() {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
+                    disabled={isLoading}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4 text-gray-400" />
@@ -130,13 +148,21 @@ export function LoginPage() {
                   variant="link"
                   className="px-0 text-sm"
                   onClick={() => setShowForgotPassword(true)}
+                  disabled={isLoading}
                 >
                   Forgot password?
                 </Button>
               </div>
 
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Signing in...' : 'Sign In'}
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
               </Button>
             </form>
           </CardContent>

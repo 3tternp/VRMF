@@ -13,16 +13,23 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
   try {
-    // Handle the default admin password
+    // Handle the default admin password with a more robust check
     if (hashedPassword === 'salt123:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8') {
       return password === 'admin123456';
     }
     
-    const [salt, hash] = hashedPassword.split(':');
+    // Handle new format passwords
+    const parts = hashedPassword.split(':');
+    if (parts.length !== 2) {
+      return false;
+    }
+    
+    const [salt, hash] = parts;
     const crypto = await import('crypto');
     const verifyHash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
     return hash === verifyHash;
-  } catch {
+  } catch (error) {
+    console.error('Password verification error:', error);
     return false;
   }
 }

@@ -9,13 +9,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, Trash2, Shield, AlertTriangle } from 'lucide-react';
 
 export function UsersPage() {
   const backend = useBackend();
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<any>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -41,9 +44,42 @@ export function UsersPage() {
     },
     onError: (error: any) => {
       console.error('Create user error:', error);
+      let errorMessage = 'Failed to create user. Please try again.';
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Error',
-        description: 'Failed to create user. Please try again.',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (id: number) => backend.user.deleteUser({ id }),
+    onSuccess: (data) => {
+      toast({
+        title: 'Success',
+        description: data.message,
+      });
+      refetch();
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
+    },
+    onError: (error: any) => {
+      console.error('Delete user error:', error);
+      let errorMessage = 'Failed to delete user. Please try again.';
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: 'Error',
+        description: errorMessage,
         variant: 'destructive',
       });
     },
@@ -74,6 +110,17 @@ export function UsersPage() {
   const handleClose = () => {
     setShowCreateDialog(false);
     resetForm();
+  };
+
+  const handleDeleteClick = (user: any) => {
+    setUserToDelete(user);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (userToDelete) {
+      deleteUserMutation.mutate(userToDelete.id);
+    }
   };
 
   const getRoleColor = (role: string) => {
@@ -107,8 +154,30 @@ export function UsersPage() {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
+
+  const getPasswordStrength = (password: string) => {
+    let strength = 0;
+    const checks = [
+      password.length >= 10,
+      /[A-Z]/.test(password),
+      /[a-z]/.test(password),
+      /[0-9]/.test(password),
+      /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    ];
+    
+    strength = checks.filter(Boolean).length;
+    
+    if (strength <= 2) return { label: 'Weak', color: 'text-red-600' };
+    if (strength <= 3) return { label: 'Fair', color: 'text-yellow-600' };
+    if (strength <= 4) return { label: 'Good', color: 'text-blue-600' };
+    return { label: 'Strong', color: 'text-green-600' };
+  };
+
+  const passwordStrength = getPasswordStrength(formData.password);
 
   return (
     <div className="space-y-6">
@@ -124,6 +193,21 @@ export function UsersPage() {
           Create User
         </Button>
       </div>
+
+      {/* Default Admin Warning */}
+      {usersData?.users.some(user => user.is_default_admin) && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2 text-yellow-800">
+              <AlertTriangle className="h-5 w-5" />
+              <span className="font-medium">Default Admin Account Detected</span>
+            </div>
+            <p className="text-yellow-700 mt-1">
+              The default admin account is still active. For security reasons, create a new admin account and delete the default one.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -152,15 +236,26 @@ export function UsersPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>MFA</TableHead>
+                    <TableHead>Last Login</TableHead>
                     <TableHead>Created</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {usersData?.users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
-                        <div className="font-medium text-gray-900">
-                          {user.name || 'No name provided'}
+                        <div className="flex items-center space-x-2">
+                          <div className="font-medium text-gray-900">
+                            {user.name || 'No name provided'}
+                          </div>
+                          {user.is_default_admin && (
+                            <Badge variant="outline" className="text-yellow-600 border-yellow-300">
+                              <Shield className="h-3 w-3 mr-1" />
+                              Default
+                            </Badge>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-gray-600">
@@ -171,8 +266,26 @@ export function UsersPage() {
                           {getRoleDisplay(user.role)}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <Badge variant={user.mfa_enabled ? 'default' : 'secondary'}>
+                          {user.mfa_enabled ? 'Enabled' : 'Disabled'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">
+                        {user.last_login ? formatDate(user.last_login) : 'Never'}
+                      </TableCell>
                       <TableCell className="text-sm text-gray-600">
                         {formatDate(user.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteClick(user)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -183,6 +296,7 @@ export function UsersPage() {
         </CardContent>
       </Card>
 
+      {/* Create User Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={handleClose}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -200,6 +314,7 @@ export function UsersPage() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter full name"
+                disabled={createUserMutation.isPending}
               />
             </div>
 
@@ -212,6 +327,7 @@ export function UsersPage() {
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="Enter email address"
                 required
+                disabled={createUserMutation.isPending}
               />
             </div>
 
@@ -222,14 +338,24 @@ export function UsersPage() {
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Enter password"
+                placeholder="Enter password (min 10 characters)"
                 required
+                disabled={createUserMutation.isPending}
               />
+              {formData.password && (
+                <p className={`text-xs mt-1 ${passwordStrength.color}`}>
+                  Password strength: {passwordStrength.label}
+                </p>
+              )}
             </div>
 
             <div>
               <Label htmlFor="role">Role *</Label>
-              <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
+              <Select 
+                value={formData.role} 
+                onValueChange={(value) => setFormData({ ...formData, role: value })}
+                disabled={createUserMutation.isPending}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select user role" />
                 </SelectTrigger>
@@ -241,17 +367,64 @@ export function UsersPage() {
               </Select>
             </div>
 
+            <div className="text-xs text-gray-600 space-y-1">
+              <p>Password requirements:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>At least 10 characters long</li>
+                <li>Contains uppercase and lowercase letters</li>
+                <li>Contains at least one number</li>
+                <li>Contains at least one special character</li>
+              </ul>
+            </div>
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleClose}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleClose}
+                disabled={createUserMutation.isPending}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createUserMutation.isPending}>
+              <Button 
+                type="submit" 
+                disabled={createUserMutation.isPending}
+              >
                 {createUserMutation.isPending ? 'Creating...' : 'Create User'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the user "{userToDelete?.email}"? This action cannot be undone.
+              {userToDelete?.is_default_admin && (
+                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
+                  <strong>Warning:</strong> You are about to delete the default admin account. Make sure you have created another admin account first.
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteUserMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleteUserMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
