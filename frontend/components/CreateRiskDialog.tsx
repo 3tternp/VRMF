@@ -31,12 +31,7 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
 
   const createRiskMutation = useMutation({
     mutationFn: async (data: any) => {
-      try {
-        return await backend.risk.create(data);
-      } catch (error) {
-        console.error('Risk creation error:', error);
-        throw error;
-      }
+      return await backend.risk.create(data);
     },
     onSuccess: () => {
       toast({
@@ -48,7 +43,15 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
     },
     onError: (error: any) => {
       console.error('Create risk error:', error);
-      const errorMessage = error?.message || 'Failed to create risk. Please try again.';
+      let errorMessage = 'Failed to create risk. Please try again.';
+      
+      // Try to extract a more specific error message
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
       toast({
         title: 'Error',
         description: errorMessage,
@@ -82,16 +85,14 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
       return;
     }
 
-    try {
-      await createRiskMutation.mutateAsync(formData);
-    } catch (error) {
-      // Error is already handled in the mutation's onError
-    }
+    createRiskMutation.mutate(formData);
   };
 
   const handleClose = () => {
-    onOpenChange(false);
-    resetForm();
+    if (!createRiskMutation.isPending) {
+      onOpenChange(false);
+      resetForm();
+    }
   };
 
   return (
@@ -114,6 +115,7 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="Enter risk title"
                 required
+                disabled={createRiskMutation.isPending}
               />
             </div>
 
@@ -125,12 +127,17 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Describe the risk in detail"
                 rows={3}
+                disabled={createRiskMutation.isPending}
               />
             </div>
 
             <div>
               <Label htmlFor="category">Category *</Label>
-              <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+              <Select 
+                value={formData.category} 
+                onValueChange={(value) => setFormData({ ...formData, category: value })}
+                disabled={createRiskMutation.isPending}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -149,7 +156,11 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
 
             <div>
               <Label htmlFor="compliance_framework">Compliance Framework *</Label>
-              <Select value={formData.compliance_framework} onValueChange={(value) => setFormData({ ...formData, compliance_framework: value })}>
+              <Select 
+                value={formData.compliance_framework} 
+                onValueChange={(value) => setFormData({ ...formData, compliance_framework: value })}
+                disabled={createRiskMutation.isPending}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select framework" />
                 </SelectTrigger>
@@ -166,7 +177,11 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
 
             <div>
               <Label htmlFor="likelihood">Likelihood (1-5) *</Label>
-              <Select value={formData.likelihood.toString()} onValueChange={(value) => setFormData({ ...formData, likelihood: parseInt(value) })}>
+              <Select 
+                value={formData.likelihood.toString()} 
+                onValueChange={(value) => setFormData({ ...formData, likelihood: parseInt(value) })}
+                disabled={createRiskMutation.isPending}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -182,7 +197,11 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
 
             <div>
               <Label htmlFor="impact">Impact (1-5) *</Label>
-              <Select value={formData.impact.toString()} onValueChange={(value) => setFormData({ ...formData, impact: parseInt(value) })}>
+              <Select 
+                value={formData.impact.toString()} 
+                onValueChange={(value) => setFormData({ ...formData, impact: parseInt(value) })}
+                disabled={createRiskMutation.isPending}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -204,6 +223,7 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
                 onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}
                 placeholder="Enter risk owner email or ID"
                 required
+                disabled={createRiskMutation.isPending}
               />
             </div>
 
@@ -215,16 +235,32 @@ export function CreateRiskDialog({ open, onOpenChange, onSuccess }: CreateRiskDi
                 onChange={(e) => setFormData({ ...formData, mitigation_plan: e.target.value })}
                 placeholder="Describe the plan to mitigate this risk"
                 rows={3}
+                disabled={createRiskMutation.isPending}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleClose}
+              disabled={createRiskMutation.isPending}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={createRiskMutation.isPending}>
-              {createRiskMutation.isPending ? 'Creating...' : 'Create Risk'}
+            <Button 
+              type="submit" 
+              disabled={createRiskMutation.isPending}
+            >
+              {createRiskMutation.isPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Creating...
+                </>
+              ) : (
+                'Create Risk'
+              )}
             </Button>
           </DialogFooter>
         </form>
