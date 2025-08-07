@@ -9,9 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { User, Shield, Key, Camera, AlertTriangle } from 'lucide-react';
+import { User, Shield, Key, AlertTriangle } from 'lucide-react';
 import { ChangePasswordDialog } from '../components/ChangePasswordDialog';
 import { MfaSetupDialog } from '../components/MfaSetupDialog';
+import { ProfileImageUpload } from '../components/ProfileImageUpload';
 
 export function ProfilePage() {
   const { user } = useAuth();
@@ -21,7 +22,6 @@ export function ProfilePage() {
   const [showMfaSetup, setShowMfaSetup] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
-    profile_image: '',
   });
 
   const { data: profile, isLoading, refetch } = useQuery({
@@ -77,6 +77,10 @@ export function ProfilePage() {
     if (password) {
       disableMfaMutation.mutate(password);
     }
+  };
+
+  const handleImageUpdate = (imageUrl: string) => {
+    refetch();
   };
 
   const formatDate = (date: Date | string) => {
@@ -181,74 +185,68 @@ export function ProfilePage() {
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <User className="h-5 w-5" />
-                <span>Personal Information</span>
-              </CardTitle>
-              <CardDescription>
-                Update your personal details and profile information
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Email</Label>
-                  <div className="mt-1 text-sm text-gray-900">{profile?.email}</div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Role</Label>
-                  <div className="mt-1">
-                    <Badge className={getRoleColor(profile?.role || '')}>
-                      {getRoleDisplay(profile?.role || '')}
-                    </Badge>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <User className="h-5 w-5" />
+                  <span>Personal Information</span>
+                </CardTitle>
+                <CardDescription>
+                  Update your personal details and profile information
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 gap-6">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Email</Label>
+                    <div className="mt-1 text-sm text-gray-900">{profile?.email}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Role</Label>
+                    <div className="mt-1">
+                      <Badge className={getRoleColor(profile?.role || '')}>
+                        {getRoleDisplay(profile?.role || '')}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Member Since</Label>
+                    <div className="mt-1 text-sm text-gray-900">
+                      {profile?.created_at ? formatDate(profile.created_at) : 'N/A'}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Last Login</Label>
+                    <div className="mt-1 text-sm text-gray-900">
+                      {profile?.last_login ? formatDate(profile.last_login) : 'Never'}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Member Since</Label>
-                  <div className="mt-1 text-sm text-gray-900">
-                    {profile?.created_at ? formatDate(profile.created_at) : 'N/A'}
+
+                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                  <div>
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      value={profileData.name || profile?.name || ''}
+                      onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                      placeholder="Enter your full name"
+                    />
                   </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Last Login</Label>
-                  <div className="mt-1 text-sm text-gray-900">
-                    {profile?.last_login ? formatDate(profile.last_login) : 'Never'}
-                  </div>
-                </div>
-              </div>
 
-              <form onSubmit={handleUpdateProfile} className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    value={profileData.name || profile?.name || ''}
-                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                    placeholder="Enter your full name"
-                  />
-                </div>
+                  <Button type="submit" disabled={updateProfileMutation.isPending}>
+                    {updateProfileMutation.isPending ? 'Updating...' : 'Update Profile'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
 
-                <div>
-                  <Label htmlFor="profile_image">Profile Image URL</Label>
-                  <Input
-                    id="profile_image"
-                    value={profileData.profile_image || profile?.profile_image || ''}
-                    onChange={(e) => setProfileData({ ...profileData, profile_image: e.target.value })}
-                    placeholder="Enter profile image URL"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Enter a URL to an image or upload to an image hosting service
-                  </p>
-                </div>
-
-                <Button type="submit" disabled={updateProfileMutation.isPending}>
-                  {updateProfileMutation.isPending ? 'Updating...' : 'Update Profile'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+            <ProfileImageUpload
+              currentImageUrl={profile?.profile_image}
+              onImageUpdate={handleImageUpdate}
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">

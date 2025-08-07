@@ -355,6 +355,8 @@ import {
     setupMfa as api_user_setup_mfa_setupMfa
 } from "~backend/user/setup_mfa";
 import { updateProfile as api_user_update_profile_updateProfile } from "~backend/user/update_profile";
+import { updateProfileImage as api_user_update_profile_image_updateProfileImage } from "~backend/user/update_profile_image";
+import { uploadProfileImage as api_user_upload_profile_image_uploadProfileImage } from "~backend/user/upload_profile_image";
 
 export namespace user {
 
@@ -371,6 +373,8 @@ export namespace user {
             this.list = this.list.bind(this)
             this.setupMfa = this.setupMfa.bind(this)
             this.updateProfile = this.updateProfile.bind(this)
+            this.updateProfileImage = this.updateProfileImage.bind(this)
+            this.uploadProfileImage = this.uploadProfileImage.bind(this)
         }
 
         /**
@@ -443,6 +447,24 @@ export namespace user {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user/profile`, {method: "PUT", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_update_profile_updateProfile>
+        }
+
+        /**
+         * Updates the user's profile image URL after successful upload
+         */
+        public async updateProfileImage(params: RequestType<typeof api_user_update_profile_image_updateProfileImage>): Promise<ResponseType<typeof api_user_update_profile_image_updateProfileImage>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/profile-image`, {method: "PUT", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_update_profile_image_updateProfileImage>
+        }
+
+        /**
+         * Generates a signed upload URL for profile image
+         */
+        public async uploadProfileImage(params: RequestType<typeof api_user_upload_profile_image_uploadProfileImage>): Promise<ResponseType<typeof api_user_upload_profile_image_uploadProfileImage>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/upload-profile-image`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_upload_profile_image_uploadProfileImage>
         }
     }
 }

@@ -10,13 +10,14 @@ A comprehensive risk management platform built with Encore.ts and React, designe
 - **Dashboard Analytics**: Visual risk heatmaps and trend analysis
 - **Role-based Access**: Admin, Risk Officer, and Auditor roles
 - **Real-time Updates**: Live dashboard with risk metrics
+- **Profile Management**: User profiles with image upload support
 
 ## Technology Stack
 
 - **Backend**: Encore.ts with TypeScript
 - **Frontend**: React with TypeScript
 - **Database**: PostgreSQL
-- **Caching**: Redis
+- **Object Storage**: Built-in Encore.ts object storage for profile images
 - **Styling**: Tailwind CSS
 - **UI Components**: shadcn/ui
 - **Charts**: Recharts
@@ -54,9 +55,9 @@ A comprehensive risk management platform built with Encore.ts and React, designe
 
 ### Default Login Credentials
 
-- **Administrator**: admin@company.com / admin123
-- **Risk Officer**: risk@company.com / risk123
-- **Auditor**: auditor@company.com / audit123
+- **Administrator**: admin@company.com / admin123456
+
+**Note**: Only administrators can create other users. After logging in as admin, go to the Users page to create additional accounts for Risk Officers and Auditors.
 
 ## Development Setup
 
@@ -93,6 +94,31 @@ A comprehensive risk management platform built with Encore.ts and React, designe
    ```bash
    npm run dev
    ```
+
+## User Management
+
+### Roles and Permissions
+
+- **Administrator**: Full access to all features, can create/manage users
+- **Risk Officer**: Can create and manage risks and controls
+- **Auditor**: Read-only access to risks and controls
+
+### Creating Users
+
+Only administrators can create new users:
+
+1. Log in as admin using the default credentials
+2. Navigate to the "Users" page in the main menu
+3. Click "Create User" and fill in the required information
+4. Assign appropriate role (admin, risk_officer, or auditor)
+
+### Profile Management
+
+Users can manage their profiles including:
+- Personal information (name, email)
+- Profile picture upload (JPEG, JPG, PNG only, max 5MB)
+- Password changes
+- Two-factor authentication setup
 
 ## Docker Configuration
 
@@ -176,6 +202,10 @@ Authorization: Bearer <token>
 - `GET /risks/dashboard` - Dashboard statistics
 - `GET /controls` - List risk controls
 - `POST /controls` - Create risk control
+- `POST /users` - Create new user (admin only)
+- `GET /users` - List all users (admin only)
+- `POST /user/upload-profile-image` - Upload profile image
+- `PUT /user/profile-image` - Update profile image URL
 
 ## Security Features
 
@@ -184,6 +214,16 @@ Authorization: Bearer <token>
 - **Security Headers**: XSS, CSRF, and clickjacking protection
 - **Input Validation**: Comprehensive request validation
 - **Role-based Access**: Granular permission system
+- **File Upload Security**: Restricted file types and sizes for profile images
+
+## File Upload Guidelines
+
+### Profile Images
+
+- **Supported formats**: JPEG, JPG, PNG only
+- **Maximum file size**: 5MB
+- **Recommended dimensions**: 400x400 pixels
+- **Storage**: Secure object storage with public access for display
 
 ## Backup and Recovery
 
@@ -231,6 +271,11 @@ docker run --rm -v riskguard_postgres_data:/data -v $(pwd):/backup alpine tar cz
    # Fix file permissions
    sudo chown -R $USER:$USER .
    ```
+
+4. **Login Issues**
+   - Ensure you're using the correct default credentials: admin@company.com / admin123456
+   - Check that the database migrations have run successfully
+   - Verify the application logs for authentication errors
 
 ### Performance Tuning
 

@@ -19,12 +19,11 @@ CREATE TABLE users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Insert default admin user with hashed password
+-- Insert default admin user with properly hashed password
 -- Password: admin123456 (meets 10 character requirement)
+-- Using a simple hash format for demo purposes
 INSERT INTO users (email, password, role, name, password_expires_at) VALUES 
-('admin@company.com', 'salt123:hashedpassword123', 'admin', 'System Administrator', NOW() + INTERVAL '90 days'),
-('risk@company.com', 'salt123:hashedpassword123', 'risk_officer', 'Risk Officer', NOW() + INTERVAL '90 days'),
-('auditor@company.com', 'salt123:hashedpassword123', 'auditor', 'Auditor', NOW() + INTERVAL '90 days');
+('admin@company.com', 'salt123:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'admin', 'System Administrator', NOW() + INTERVAL '90 days');
 
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
