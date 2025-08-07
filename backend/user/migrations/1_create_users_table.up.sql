@@ -1,28 +1,46 @@
 CREATE TABLE users (
-  id BIGSERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'risk_officer', 'auditor')),
-  name VARCHAR(255),
-  profile_image TEXT,
-  mfa_enabled BOOLEAN DEFAULT FALSE,
-  mfa_secret VARCHAR(255),
-  mfa_temp_secret VARCHAR(255),
-  mfa_backup_codes TEXT,
-  password_expires_at TIMESTAMP WITH TIME ZONE,
-  last_login TIMESTAMP WITH TIME ZONE,
-  failed_login_attempts INTEGER DEFAULT 0,
-  locked_until TIMESTAMP WITH TIME ZONE,
-  reset_token VARCHAR(500),
-  reset_token_expires TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('admin', 'iso_officer', 'auditor')),
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  profile_picture_url TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  mfa_secret TEXT,
+  password_expires_at TIMESTAMP NOT NULL,
+  last_password_change TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+  locked_until TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by TEXT,
+  updated_by TEXT
 );
 
--- Insert default admin user with simple hash for demo
--- Password: admin123456 (meets 10 character requirement)
-INSERT INTO users (email, password, role, name, password_expires_at) VALUES 
-('admin@company.com', 'demo_admin_hash', 'admin', 'System Administrator', NOW() + INTERVAL '90 days');
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_is_active ON users(is_active);
+
+-- Insert default admin user
+INSERT INTO users (
+  id, 
+  email, 
+  password_hash, 
+  role, 
+  first_name, 
+  last_name, 
+  password_expires_at
+) VALUES (
+  'default-admin',
+  'admin@riskmanagement.com',
+  '$2b$12$LQv3c1yqBw2fyuDiIHHDNe7qjVdNDJLLp0/HjgheuKbngW1cJ0yx.',
+  'admin',
+  'Default',
+  'Admin',
+  CURRENT_TIMESTAMP + INTERVAL '90 days'
+);
 
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
