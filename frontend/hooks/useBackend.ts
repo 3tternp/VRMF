@@ -9,6 +9,6 @@ export function useBackend() {
   }
   
   return backend.with({
-    auth: () => ({ authorization: `Bearer ${token}` })
+    auth: async () => ({ authorization: `Bearer ${token}` })
   });
 }
