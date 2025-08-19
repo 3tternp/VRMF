@@ -33,8 +33,8 @@ A comprehensive risk management platform built with Encore.ts and React, designe
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd riskguard
+   git clone https://github.com/3tternp/VRMF
+   cd VRMF
    ```
 
 2. **Create environment file**
